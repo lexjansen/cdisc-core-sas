@@ -24,8 +24,6 @@ env/
 venv/
 ENV/
 
-tests/
-
 ~$*.*
 *.zip
 *.log
