@@ -25,7 +25,7 @@ More information:
 */
 
 
-%let report_name = CORE_report_%sysfunc(translate(%sysfunc(datetime(), e8601dt.), %str(-), %str(:)));
+%let report_name = CORE-Report-%sysfunc(translate(%sysfunc(datetime(), e8601dt.), %str(-), %str(:)));
 
 proc sql noprint;
   select trim(left(core_id)) into :core_rules separated by ','

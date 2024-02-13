@@ -39,6 +39,6 @@ run;
 filename mapfile "%sysfunc(pathname(work))/rulesets.map";
 libname jsonfile json fileref=rulesets /* noalldata  ordinalcount=none */;
 
-data data.rulesets(keep=value);
+data data.core_rulesets(keep=value);
   set jsonfile.alldata;
 run;

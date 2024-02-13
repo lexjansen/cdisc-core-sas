@@ -38,17 +38,17 @@ data _null_;
 run;
 
 filename mapfile "%sysfunc(pathname(work))/metadata.map";
-libname jsonfile json fileref=metadata noalldata  ordinalcount=none;
+libname jsonfile json fileref=metadata noalldata ordinalcount=none;
 
-data data.dataset_metadata;
+data data.core_dataset_metadata;
   set jsonfile.root;
 run;
 
 ods listing close;
-ods html5 file="&project_folder/reports/dataset_metadata.html";
-ods excel file="&project_folder/reports/dataset_metadata.xlsx" options(sheet_name="Datasets" flow="tables" autofilter = 'all');
+ods html5 file="&project_folder/reports/core_dataset_metadata.html";
+ods excel file="&project_folder/reports/core_dataset_metadata.xlsx" options(sheet_name="Datasets" flow="tables" autofilter = 'all');
 
-  proc print data=data.dataset_metadata;
+  proc print data=data.core_dataset_metadata;
   run;
 
 ods excel close;

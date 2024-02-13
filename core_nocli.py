@@ -312,6 +312,7 @@ def update_cache(
 def list_rules(
     standard: str,
     version: str,
+    output: str,
     cache_path: str = DefaultFilePaths.CACHE.value
     ):
     # Load all rules
@@ -324,8 +325,8 @@ def list_rules(
     else:
         # Print all rules
         rules = list(rules_data.values())
-    print(json.dumps(rules, indent=4))
-    with open("out_rules.json", "w") as f:
+    # print(json.dumps(rules, indent=4))
+    with open(output, "w") as f:
         json.dump(rules, f)
 
 
@@ -434,7 +435,7 @@ def list_rule_sets(
             rule_sets.add(rule_set)
             report_data.append(rule_set)
 
-    with open("out_rule_sets.json", "w") as f:
+    with open(output, "w") as f:
         json.dump(report_data, f)
 
 
@@ -536,11 +537,11 @@ if __name__ == "__main__":
     # cli()
 
     version()
-    # list_ct(output="core_ct.json", subsets=[])
-    list_dataset_metadata(dataset_path=['../data/sdtm/dm.xpt', '../data/sdtm/ae.xpt', '../data/sdtm/ex.xpt', '../data/sdtm/lb.xpt'], output="./reports/core_dataset_metadata.json")
-    # list_rule_sets(output="core_rule_sets.json")
-    # list_rules(standard='sdtmig', version='3-4')
-    # update_cache(apikey=os.environ.get("CDISC_LIBRARY_API_KEY"))
+    update_cache(apikey=os.environ.get("CDISC_LIBRARY_API_KEY"), cache_path='./resources/cache')
+    list_ct(output="./reports/core_ct.json", subsets=[])
+    list_dataset_metadata(output="./reports/core_dataset_metadata.json", dataset_path=['./testdata/sdtm/dm.xpt', './testdata/sdtm/ae.xpt', './testdata/sdtm/ex.xpt', './testdata/sdtm/lb.xpt'])
+    list_rule_sets(output="./reports/core_rule_sets.json")
+    list_rules(output="./reports/core_rules.json", standard='sdtmig', version='3-4')
 
     validate(
         standard='sdtmig',
@@ -548,8 +549,8 @@ if __name__ == "__main__":
         cache='./resources/cache',
         # pool_size=10,
         # log_level='warn',
-        # data='../data/sdtm',
-        dataset_path=['../data/sdtm/dm.xpt', '../data/sdtm/ae.xpt', '../data/sdtm/ex.xpt', '../data/sdtm/lb.xpt'],
+        # data='./testdata/sdtm',
+        dataset_path=['./testdata/sdtm/dm.xpt', './testdata/sdtm/ae.xpt', './testdata/sdtm/ex.xpt', './testdata/sdtm/lb.xpt'],
         report_template='./resources/templates/report-template.xlsx',
         output_format=['JSON', 'XLSX'],
         raw_report=False,
@@ -558,7 +559,7 @@ if __name__ == "__main__":
         define_version='2.1.0',
         # rules=['CORE-000266'],
         rules=[],
-        define_xml_path='../data/sdtm/define.xml',
+        define_xml_path='./testdata/sdtm/define.xml',
         whodrug='./tests/resources/dictionaries/whodrug',
         meddra='./tests/resources/dictionaries/meddra'
         # progress='disabled'

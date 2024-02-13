@@ -40,6 +40,6 @@ run;
 filename mapfile "%sysfunc(pathname(work))/ct.map";
 libname jsonfile json fileref=ct /* noalldata  ordinalcount=none */;
 
-data data.ct(keep=value);
+data data.core_ct(keep=value);
   set jsonfile.alldata;
 run;

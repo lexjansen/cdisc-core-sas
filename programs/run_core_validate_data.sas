@@ -25,7 +25,7 @@ More information:
 */
 
 
-%let report_name = CORE_report_%sysfunc(translate(%sysfunc(datetime(), e8601dt.), %str(-), %str(:)));
+%let report_name = CORE-Report-%sysfunc(translate(%sysfunc(datetime(), e8601dt.), %str(-), %str(:)));
 
 %core_validate_data(
   cache_path = &project_folder/resources/cache,
