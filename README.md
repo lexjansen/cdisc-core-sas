@@ -1,13 +1,15 @@
-### Supported python versions
+# cdisc-core-sas
+
+Proof of Concept for running CDISC CORE within SAS.
+
+This Proof of Concepts was developed on Windows 10 with SAS 9.4 TS1M7.
+
+## Supported python versions
 
 [![Python 3.9](https://img.shields.io/badge/python-3.9-green.svg)](https://www.python.org/downloads/release/python-390)
 [![Python 3.10](https://img.shields.io/badge/python-3.10-blue.svg)](https://www.python.org/downloads/release/python-310)
 
-# cdisc-core-sas
-
-Proof of Concept for running CDISC CORE within SAS
-
-### Installing dependencies
+## Installing dependencies
 
 These steps should be run before running the SAS programs.
 
@@ -30,14 +32,14 @@ These steps should be run before running the SAS programs.
 
 `python -m pip install -r <location of cdisc-rules-engine local repo clone>/requirements.txt` # From the root directory
 
-### Environment variables
+## Environment variables
 
 Define the following environment variables:
 
 - CORE_PATH - Location of the local cdisc-rules-engine local repo clone
 - CDISC_LIBRARY_API_KEY - CDISC Library API Key for updating the rules cache
 
-### Run SAS programs
+## Run SAS programs
 
 Run the following SAS programs (make sure to update the `project_folder` macro variable in each program):
 
@@ -52,3 +54,12 @@ After this all the other SAS programs can run:
 - programs/run_core_list_rule_sets.sas
 - programs/run_core_validate_data.sas
 - programs/run_core_validate_data_select.sas
+
+## Issues
+
+When encountering issues, please open an issue at [https://github.com/lexjansen/cdisc-core-sas/issues](https://github.com/lexjansen/cdisc-core-sas/issues).
+
+## License
+
+![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
+This project is using the [MIT](http://www.opensource.org/licenses/MIT "The MIT License | Open Source Initiative") license (see [`LICENSE`](LICENSE)).
