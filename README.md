@@ -36,10 +36,17 @@ These steps should be run before running the SAS programs.
 
 Define the following environment variables:
 
-- CORE_PATH - Location of the local cdisc-rules-engine local repo clone
-- CDISC_LIBRARY_API_KEY - CDISC Library API Key for updating the rules cache
+- `CORE_PATH` - Location of the local cdisc-rules-engine local repo clone
+- `CDISC_LIBRARY_API_KEY` - CDISC Library API Key for updating the rules cache
 
 ## Run SAS programs
+
+Check the options in `programs/options.sas` to be able to run Python:
+
+```SAS
+options set=MAS_PYPATH="&project_folder/.venv/Scripts/python.exe";
+options set=MAS_M2PATH="%sysget(SASROOT)/tkmas/sasmisc/mas2py.py";
+```
 
 Run the following SAS programs (make sure to update the `project_folder` macro variable in each program):
 
@@ -48,12 +55,12 @@ Run the following SAS programs (make sure to update the `project_folder` macro v
 
 After this all the other SAS programs can run:
 
-- programs/run_core_list_ct.sas
-- programs/run_core_list_dataset_metadata.sas
-- programs/run_core_list_rules.sas
-- programs/run_core_list_rule_sets.sas
-- programs/run_core_validate_data.sas
-- programs/run_core_validate_data_select.sas
+- `programs/run_core_list_ct.sas`
+- `programs/run_core_list_dataset_metadata.sas`
+- `programs/run_core_list_rules.sas`
+- `programs/run_core_list_rule_sets.sas`
+- `programs/run_core_validate_data.sas`
+- `programs/run_core_validate_data_select.sas`
 
 ## Issues
 
