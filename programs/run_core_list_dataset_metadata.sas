@@ -46,9 +46,10 @@ run;
 
 ods listing close;
 ods html5 file="&project_folder/reports/core_dataset_metadata.html";
-ods excel file="&project_folder/reports/core_dataset_metadata.xlsx" options(sheet_name="Datasets" flow="tables" autofilter = 'all');
+ods excel file="&project_folder/reports/core_dataset_metadata.xlsx" options(sheet_name="Datasets Metadata %sysfunc(date(), e8601da.)" flow="tables" autofilter = 'all');
 
   proc print data=data.core_dataset_metadata;
+    title "Datasets Metadata %sysfunc(date(), e8601da.)";
   run;
 
 ods excel close;

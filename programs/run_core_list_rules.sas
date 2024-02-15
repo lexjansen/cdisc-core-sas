@@ -93,9 +93,10 @@ run;
 
 ods listing close;
 ods html5 file="&project_folder/reports/core_rules.html";
-ods excel file="&project_folder/reports/core_rules.xlsx" options(sheet_name="Rules" flow="tables" autofilter = 'all');
+ods excel file="&project_folder/reports/core_rules.xlsx" options(sheet_name="CORE Rules %sysfunc(date(), e8601da.)" flow="tables" autofilter = 'all');
 
   proc print data=data.core_rules;
+    title "CORE Rules %sysfunc(date(), e8601da.)";
   run;
 
 ods excel close;

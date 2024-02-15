@@ -39,6 +39,9 @@ run;
 filename mapfile "%sysfunc(pathname(work))/rulesets.map";
 libname jsonfile json fileref=rulesets /* noalldata  ordinalcount=none */;
 
-data data.core_rulesets(keep=value);
+data data.core_rulesets(keep=standard version);
+  length standard $32 version $16;
   set jsonfile.alldata;
+  standard = strip(scan(value, 1, ','));
+  version = strip(scan(value, 2, ','));
 run;
