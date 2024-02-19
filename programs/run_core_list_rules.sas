@@ -72,6 +72,7 @@ proc sql;
   create table data.core_rules(drop=ordinal_root)
   as select
     root.*
+    , params.message
     , standards.name as standard_name
     , standards.version as standard_version
     , domains_include._include as domains_include
@@ -87,6 +88,10 @@ proc sql;
     on (domains_exclude.ordinal_domains=root.ordinal_root)
       left join work.datasets datasets
     on (datasets.ordinal_root=root.ordinal_root)
+      left join out.actions actions
+    on (actions.ordinal_root=root.ordinal_root)
+      left join out.actions_params params
+    on (params.ordinal_actions = actions.ordinal_actions)
   where standards.name = "SDTMIG" and standards.version = "3.3"
   ;
 run;
