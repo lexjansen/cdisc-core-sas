@@ -43,6 +43,20 @@ libname jsonfile json map=mapfile automap=create fileref=rules noalldata  /* ord
 proc copy in=jsonfile out=out;
 run;
 
+proc sort data=out.standards(drop=ordinal_standards) out=work.standards nodupkey;
+  by ordinal_root name version;
+run;
+
+data work.standards;
+  set work.standards;
+  by ordinal_root notsorted;
+  length _standards $ 256;
+  retain _standards;
+  if first.ordinal_root then _standards = catx(' ', name, version);
+                        else _standards = catx(";", _standards, catx(' ', name, version));
+  if last.ordinal_root;
+run;
+
 
 data work.datasets;
   set out.datasets;
@@ -68,31 +82,49 @@ data work.domains_exclude;
   _exclude = catx(";", OF exclude_{*});
 run;
 
+data work.classes_include;
+  set out.classes_include;
+  length _include $ 256;
+  array include_{*} $ 32 include:;
+  _include = catx(";", OF include_{*});
+run;
+
+data work.classes_exclude;
+  set out.classes_exclude;
+  length _exclude $ 256;
+  array exclude_{*} $ 32 exclude:;
+  _exclude = catx(";", OF exclude_{*});
+run;
+
 proc sql;
   create table data.core_rules(drop=ordinal_root)
   as select
     root.*
     , params.message
-    , standards.name as standard_name
-    , standards.version as standard_version
+    , standards._standards as standards
+    , classes_include._include as classes_include
+    , classes_exclude._exclude as classes_exclude
     , domains_include._include as domains_include
     , domains_exclude._exclude as domains_exclude
     , datasets._datasets as datasets
   from
     out.root root
-      left join out.standards standards
+      left join work.standards standards
     on (standards.ordinal_root=root.ordinal_root)
       left join work.domains_include domains_include
     on (domains_include.ordinal_domains=root.ordinal_root)
       left join work.domains_exclude domains_exclude
     on (domains_exclude.ordinal_domains=root.ordinal_root)
+      left join work.classes_include classes_include
+    on (classes_include.ordinal_classes=root.ordinal_root)
+      left join work.classes_exclude classes_exclude
+    on (classes_exclude.ordinal_classes=root.ordinal_root)
       left join work.datasets datasets
     on (datasets.ordinal_root=root.ordinal_root)
       left join out.actions actions
     on (actions.ordinal_root=root.ordinal_root)
       left join out.actions_params params
     on (params.ordinal_actions = actions.ordinal_actions)
-  where standards.name = "SDTMIG" and standards.version = "3.3"
   ;
 run;
 

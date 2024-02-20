@@ -27,10 +27,13 @@ More information:
 
 %let report_name = CORE-Report-%sysfunc(translate(%sysfunc(datetime(), e8601dt.), %str(-), %str(:)));
 
+/* Example of selecting rules */
 proc sql noprint;
   select trim(left(core_id)) into :core_rules separated by ','
   from data.core_rules
-  where (domains_include in ('ALL' 'AE' 'DM')) and (domains_exclude ne 'DM') and (domains_exclude ne 'AE');
+  where (domains_include in ('ALL' 'AE' 'DM')) and (domains_exclude ne 'DM') and (domains_exclude ne 'AE')
+         and (index(standards, "SDTMIG 3.3") gt 0);
+  order by core_id;
 quit;
 
 %put &=core_rules;
