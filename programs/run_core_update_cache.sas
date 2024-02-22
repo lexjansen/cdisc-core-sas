@@ -25,8 +25,11 @@ More information:
 */
 
 
-* This macro asumes that you have an environment variable CDISC_LIBRARY_API_KEY;
+/* 
+  This macro call assumes that you have an environment variable CDISC_LIBRARY_API_KEY;
+  If not, you can specify the API key.
+*/  
 %core_update_cache(
-  apikey= %sysfunc(sysget(CDISC_LIBRARY_API_KEY)),
+  /* apikey= <your API key>, */
   cache_path = &project_folder/resources/cache
   );

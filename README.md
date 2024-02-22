@@ -34,7 +34,7 @@ These steps should be run before running the SAS programs.
 
 ## Environment variables
 
-Define the following environment variables:
+Define the following OS environment variables:
 
 - `CORE_PATH` - Location of the local cdisc-rules-engine local repo clone
 - `CDISC_LIBRARY_API_KEY` - CDISC Library API Key for updating the rules cache
