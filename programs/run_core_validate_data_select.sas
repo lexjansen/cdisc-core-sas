@@ -32,7 +32,7 @@ proc sql noprint;
   select trim(left(core_id)) into :core_rules separated by ','
   from data.core_rules
   where (domains_include in ('ALL' 'AE' 'DM')) and (domains_exclude ne 'DM') and (domains_exclude ne 'AE')
-         and (index(standards, "SDTMIG 3.3") gt 0);
+         and (index(standards, "SDTMIG 3.3") gt 0)
   order by core_id;
 quit;
 
