@@ -26,7 +26,7 @@ More information:
 
 
 /* 
-  This macro call assumes that you have an environment variable CDISC_LIBRARY_API_KEY;
+  This macro call assumes that you have an environment variable CDISC_LIBRARY_API_KEY.
   If not, you can specify the API key.
 */  
 %core_update_cache(

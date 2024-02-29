@@ -4,8 +4,9 @@ libname data "&project_folder/data";
 
 %* This is needed to be able to run Python;
 %* Update to your own locations           ;
-options set=MAS_PYPATH="&project_folder/.venv/Scripts/python.exe";
-options set=MAS_M2PATH="%sysget(SASROOT)/tkmas/sasmisc/mas2py.py";
+options set = MAS_PYPATH = "&project_folder/.venv/Scripts/python.exe";
+options set = MAS_M2PATH = "%sysget(SASROOT)/tkmas/sasmisc/mas2py.py";
+options set = CORE_PATH = "/_github/cdisc-org/cdisc-rules-engine";
 
 options cmplib=macros.core_funcs;
 

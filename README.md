@@ -39,13 +39,16 @@ Define the following OS environment variables:
 - `CORE_PATH` - Location of the local cdisc-rules-engine local repo clone
 - `CDISC_LIBRARY_API_KEY` - CDISC Library API Key for updating the rules cache
 
+Alternatively, these can be set in `programs/options.sas`.
+
 ## Run SAS programs
 
 Check the options in `programs/options.sas` to be able to run Python:
 
 ```SAS
-options set=MAS_PYPATH="&project_folder/.venv/Scripts/python.exe";
-options set=MAS_M2PATH="%sysget(SASROOT)/tkmas/sasmisc/mas2py.py";
+options set = MAS_PYPATH = "&project_folder/.venv/Scripts/python.exe";
+options set = MAS_M2PATH = "%sysget(SASROOT)/tkmas/sasmisc/mas2py.py";
+options set = CORE_PATH = "/_github/cdisc-org/cdisc-rules-engine";
 ```
 
 Run the following SAS programs (make sure to update the `project_folder` macro variable in each program):
