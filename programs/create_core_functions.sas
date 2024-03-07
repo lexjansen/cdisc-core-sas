@@ -26,7 +26,7 @@ proc fcmp outlib=macros.core_funcs.python;
   function core_validate_data(
     cache $, pool_size, data $, dataset_path $, log_level $, report_template $,
     standard $, version $, output $, output_format $, raw_report,
-    controlled_terminology_package $, define_version $, define_xml_path $,
+    controlled_terminology_package $, define_version $, data_format $, define_xml_path $,
     whodrug $, meddra $, rules $) $ 128;
     length message $ 128;
     declare object py(python);
@@ -35,7 +35,7 @@ proc fcmp outlib=macros.core_funcs.python;
     rc = py.call('core_validate_data',
       cache, pool_size, data, dataset_path, log_level, report_template, standard,
       version, output, output_format, raw_report, controlled_terminology_package,
-      define_version, define_xml_path, whodrug, meddra, rules);
+      define_version, data_format, define_xml_path, whodrug, meddra, rules);
     message = py.results['message_return_value'];
     return(message);
   endfunc;

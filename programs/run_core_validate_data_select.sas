@@ -42,7 +42,7 @@ quit;
   cache_path = &project_folder/resources/cache,
   pool_size = 10,
   /*
-  data= &project_folder/../data/sdtm,
+  data= &project_folder/testdata/sdtm,
   */
   dataset_path = %str
     (&project_folder/testdata/sdtm/dm.xpt, &project_folder/testdata/sdtm/ae.xpt),
@@ -52,6 +52,7 @@ quit;
   output= &project_folder/reports/&report_name._sdtmig_3-3,
   output_format = %str(XLSX, JSON),
   raw_report = 0,
+  data_format = XPT,
   define_xml_path = &project_folder/testdata/sdtm/define.xml,
   whodrug = &project_folder/tests/resources/dictionaries/whodrug,
   meddra = &project_folder/tests/resources/dictionaries/meddra,
