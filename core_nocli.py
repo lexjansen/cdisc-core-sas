@@ -6,13 +6,7 @@ import sys
 import pickle
 from datetime import datetime
 from multiprocessing import freeze_support
-from typing import Tuple
-
-# Add top-level folder to path so that project folder can be found
-# core_path = os.environ["CORE_PATH"]
-# lib_path = os.path.abspath(os.path.join(__file__, core_path))
-# print("Library path=" + lib_path)
-# if lib_path not in sys.path: sys.path.append(lib_path)
+from typing import Iterable, Tuple
 
 # import click
 from pathlib import Path
@@ -21,7 +15,6 @@ from cdisc_rules_engine.constants.define_xml_constants import DEFINE_XML_FILE_NA
 from cdisc_rules_engine.enums.default_file_paths import DefaultFilePaths
 from cdisc_rules_engine.enums.progress_parameter_options import ProgressParameterOptions
 from cdisc_rules_engine.enums.report_types import ReportTypes
-# from cdisc_rules_engine.enums.dataformat_types import DataFormatTypes
 from cdisc_rules_engine.models.validation_args import Validation_args
 from cdisc_rules_engine.models.test_args import TestArgs
 from scripts.run_validation import run_validation
@@ -36,20 +29,6 @@ from cdisc_rules_engine.utilities.utils import (
 from scripts.list_dataset_metadata_handler import list_dataset_metadata_handler
 from version import __version__
 
-
-# def valid_data_file(data_path: list) -> Tuple[list, set]:
-#     allowed_formats = [format.value for format in DataFormatTypes]
-#     found_formats = set()
-#     file_list = []
-#     for file in data_path:
-#         file_extension = os.path.splitext(file)[1][1:].upper()
-#         if file_extension in allowed_formats:
-#             found_formats.add(file_extension)
-#             file_list.append(file)
-#     if len(found_formats) > 1:
-#         return [], found_formats
-#     elif len(found_formats) == 1:
-#         return file_list, found_formats
 
 def valid_data_file(file_name: str, data_format: str):
     fn = os.path.basename(file_name)
@@ -217,14 +196,6 @@ def validate(
                 "Argument --dataset-path cannot be used together with argument --data"
             )
             return
-        # dataset_paths, found_formats = valid_data_file(
-        #     [str(Path(data).joinpath(fn)) for fn in os.listdir(data)]
-        # )
-        # if len(found_formats) > 1:
-        #     logger.error(
-        #         f"Argument --data contains more than one allowed file format ({', '.join(found_formats)})."  # noqa: E501
-        #     )
-        #     return
         dataset_paths: Iterable[str] = [
             str(Path(data).joinpath(fn))
             for fn in os.listdir(data)
@@ -236,12 +207,6 @@ def validate(
                 "Argument --dataset-path cannot be used together with argument --data"
             )
             return
-        # dataset_paths, found_formats = valid_data_file([dp for dp in dataset_path])
-        # if len(found_formats) > 1:
-        #     logger.error(
-        #         f"Argument --dataset_path contains more than one allowed file format ({', '.join(found_formats)})."  # noqa: E501
-        #     )
-        #     return
         dataset_paths: Iterable[str] = [
             dp for dp in dataset_path if valid_data_file(dp, data_format)
         ]
@@ -350,7 +315,6 @@ def list_rules(
     else:
         # Print all rules
         rules = list(rules_data.values())
-    # print(json.dumps(rules, indent=4))
     with open(output, "w") as f:
         json.dump(rules, f)
 
@@ -503,7 +467,6 @@ def list_dataset_metadata(
            ...
         ]
     """
-    # print(json.dumps(list_dataset_metadata_handler(dataset_path), indent=4))
     with open(output, "w") as f:
         json.dump(list_dataset_metadata_handler(dataset_path), f)
 
@@ -547,19 +510,7 @@ def list_ct(
     with open(output, "w") as f:
         json.dump(ctset, f)
 
-
-# cli.add_command(validate)
-# cli.add_command(update_cache)
-# cli.add_command(list_rules)
-# cli.add_command(list_rule_sets)
-# cli.add_command(list_dataset_metadata)
-# cli.add_command(test)
-# cli.add_command(version)
-# cli.add_command(list_ct)
-
 if __name__ == "__main__":
-    # freeze_support()
-    # cli()
 
     # version()
     # update_cache(apikey=os.environ.get("CDISC_LIBRARY_API_KEY"), cache_path='./resources/cache')
@@ -574,8 +525,8 @@ if __name__ == "__main__":
         cache='./resources/cache',
         # pool_size=10,
         # log_level='warn',
-        data='./testdata/sdtm',
-        # dataset_path=['./testdata/sdtm/dm.xpt', './testdata/sdtm/ae.xpt', './testdata/sdtm/ex.xpt', './testdata/sdtm/lb.xpt'],
+        # data='./testdata/sdtm',
+        dataset_path=['./testdata/sdtm/dm.xpt', './testdata/sdtm/ae.xpt'],
         report_template='./resources/templates/report-template.xlsx',
         output_format=['JSON', 'XLSX'],
         raw_report=False,
@@ -583,12 +534,10 @@ if __name__ == "__main__":
         controlled_terminology_package=['sdtmct-2023-12-15'],
         define_version='2.1.0',
         # data_format = "XPT",
-        # rules=['CORE-000266'],
-        rules=[],
+        rules = ["CORE-000006", "CORE-000007", "CORE-000012", "CORE-000013", "CORE-000019", "CORE-000266", "CORE-000356"],
         define_xml_path='./testdata/sdtm/define.xml',
         whodrug='./tests/resources/dictionaries/whodrug',
         meddra='./tests/resources/dictionaries/meddra'
-        # progress='disabled'
-
+        # progress='disabled',
     )
 

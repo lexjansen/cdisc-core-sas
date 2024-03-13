@@ -1,4 +1,6 @@
 options sasautos = (%qsysfunc(compress(%qsysfunc(getoption(SASAUTOS)),%str(%()%str(%)))) "&project_folder/macros");
+options noquotelenmax;
+
 libname macros "&project_folder/macros";
 libname data "&project_folder/data";
 

@@ -24,13 +24,16 @@ More information:
   https://go.documentation.sas.com/doc/en/bicdc/9.4/biasag/n1mquxnfmfu83en1if8icqmx8cdf.htm
 */
 
+/* Specify standard, DDF not supported */
+%let core_standard = sdtmig;
+%let core_standard_version = 3-3;
 
 filename rules "&project_folder/reports/core_rules.json";
 
 %core_list_rules(
   output =  %sysfunc(pathname(rules)),
-  standard = sdtmig,
-  version = 3-3,
+  standard = &core_standard,
+  version = &core_standard_version,
   cache_path = &project_folder/resources/cache
   );
 
@@ -39,7 +42,7 @@ filename rules "&project_folder/reports/core_rules.json";
 libname out "%sysfunc(pathname(work))";
 filename mapfile "%sysfunc(pathname(out))/rules.map";
 
-libname jsonfile json map=mapfile automap=create fileref=rules noalldata  /* ordinalcount=none */;
+libname jsonfile json map=mapfile automap=create fileref=rules;
 proc copy in=jsonfile out=out;
 run;
 
