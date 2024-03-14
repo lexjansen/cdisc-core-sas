@@ -1,4 +1,4 @@
-%* update this location to your own location;
+%* update this macro variable to your own location;
 %let project_folder=/_github/lexjansen/cdisc-core-sas;
 
 options sasautos = (%qsysfunc(compress(%qsysfunc(getoption(SASAUTOS)),%str(%()%str(%)))) "&project_folder/macros");
@@ -76,4 +76,6 @@ proc fcmp outlib=macros.core_funcs.python;
   endsub;
 
 run;
+
+libname macros clear;
 
