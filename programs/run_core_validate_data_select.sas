@@ -10,16 +10,16 @@
 
 /* Example of selecting rules */
 proc sql noprint;
-  select trim(left(core_id)) into :core_rules separated by ','
+  select distinct core_id into :core_rules separated by ','
   from metadata.core_rules
   where (domains_include in ('ALL' 'AE' 'DM')) and (domains_exclude ne 'DM') and (domains_exclude ne 'AE')
          and (core_standard = "sdtmig" and core_standard_version =  "3-3")
   order by core_id;
 quit;
 
-* options noquotelenmax;
 %put &=core_rules;
 
+options noquotelenmax;
 %core_validate_data(
   cache_path = &project_folder/resources/cache,
   pool_size = 10,
