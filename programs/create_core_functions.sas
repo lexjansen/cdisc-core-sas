@@ -1,17 +1,21 @@
-%* update this macro variable to your own location;
-%let project_folder=/_github/lexjansen/cdisc-core-sas;
+%* This code assumes that your SAS environment is able to run Python objects. ;
+%* Check the programs/config.sas file for the Python configuration.           ;
 
-options sasautos = (%qsysfunc(compress(%qsysfunc(getoption(SASAUTOS)),%str(%()%str(%)))) "&project_folder/macros");
-options ls=max nomprint;
+%* update this macro variable to your own location;
+%let project_folder = /_github/lexjansen/cdisc-core-sas;
+
+options sasautos =
+  (%qsysfunc(compress(%qsysfunc(getoption(SASAUTOS)),%str(%()%str(%))))
+  "&project_folder/macros");
 libname macros "&project_folder/macros";
 
 %if %sysfunc(exist(macros.core_funcs)) %then %do;
-  proc datasets library=macros nolist;
+  proc datasets library = macros nolist;
      delete core_funcs;
   run;
 %end;
 
-proc fcmp outlib=macros.core_funcs.python;
+proc fcmp outlib = macros.core_funcs.python;
 
   function core_version() $ 32;
     length message $ 128;

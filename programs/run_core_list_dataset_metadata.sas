@@ -2,36 +2,40 @@
 %* Check the programs/config.sas file for the Python configuration.           ;
 
 %* update this macro variable to your own location;
-%let project_folder=/_github/lexjansen/cdisc-core-sas;
+%let project_folder = /_github/lexjansen/cdisc-core-sas;
 
 %include "&project_folder/programs/config.sas";
 
-filename metadata "&project_folder/json/core_dataset_metadata.json";
+filename meta "&project_folder/json/core_dataset_metadata.json";
 
 %core_list_dataset_metadata(
   dataset_path = %str
-    (&project_folder/testdata/sdtm/dm.xpt, &project_folder/testdata/sdtm/ae.xpt, &project_folder/testdata/sdtm/ex.xpt, &project_folder/testdata/sdtm/lb.xpt),
-    output =  %sysfunc(pathname(metadata))
+    (&project_folder/testdata/sdtm/dm.xpt, 
+     &project_folder/testdata/sdtm/ae.xpt, 
+     &project_folder/testdata/sdtm/ex.xpt, 
+     &project_folder/testdata/sdtm/lb.xpt),
+    output =  %sysfunc(pathname(meta))
   );
 
 data _null_;
-   rc = jsonpp('metadata','log');
+   rc = jsonpp('meta','log');
 run;
 
-libname jsonfile json fileref=metadata ordinalcount=none;
+libname jsonfile json fileref=meta ordinalcount=none;
 
-data data.core_dataset_metadata;
+data metadata.core_dataset_metadata;
   set jsonfile.root;
 run;
 
-filename metadata clear;
+filename meta clear;
 libname jsonfile clear;
 
 ods listing close;
-ods html5 file="&project_folder/reports/core_dataset_metadata.html";
-ods excel file="&project_folder/reports/core_dataset_metadata.xlsx" options(sheet_name="Datasets Metadata %sysfunc(date(), e8601da.)" flow="tables" autofilter = 'all');
+ods html5 file = "&project_folder/reports/core_dataset_metadata.html";
+ods excel file = "&project_folder/reports/core_dataset_metadata.xlsx" 
+  options(sheet_name = "Datasets Metadata %sysfunc(date(), e8601da.)" flow = "tables" autofilter = 'all');
 
-  proc print data=data.core_dataset_metadata;
+  proc print data = metadata.core_dataset_metadata;
     title "Datasets Metadata %sysfunc(date(), e8601da.)";
   run;
 

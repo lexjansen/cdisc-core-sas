@@ -21,26 +21,26 @@
   %******************************************************************************;
 
   %* Check for missing parameters ;
-  %let _Missing=;
+  %let _Missing =;
   %if %sysevalf(%superq(output)=, boolean) %then %let _Missing = &_Missing output;
 
-  %if %length(&_Missing) gt 0
+  %if %length(&_Missing) > 0
     %then %do;
       %put ERR%str(OR): [&sysmacroname] Required macro parameter(s) missing: &_Missing..;
       %goto exit_macro;
     %end;
 
   %* Check dataset_path;
-  %if %sysevalf(%superq(dataset_path)=, boolean)=0 %then %do;
-    %let i=1;
-    %let _Dataset=%scan(&dataset_path, &i, %str(,;));
+  %if %sysevalf(%superq(dataset_path)=, boolean) = 0 %then %do;
+    %let i = 1;
+    %let _Dataset = %scan(&dataset_path, &i, %str(,;));
     %do %while (%length(&_Dataset));    
       %if not %sysfunc(fileexist(&_Dataset)) %then %do;
         %put ERR%str(OR): [&sysmacroname] Dataset &_Dataset in dataset_path parameter does not exist.;
         %goto exit_macro;
       %end;  
       %let i = %eval(&i + 1);
-      %let _Dataset=%scan(&dataset_path, &i, %str(,;));
+      %let _Dataset = %scan(&dataset_path, &i, %str(,;));
     %end;
   %end;  
 

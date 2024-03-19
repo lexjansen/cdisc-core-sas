@@ -512,12 +512,12 @@ def list_ct(
 
 if __name__ == "__main__":
 
-    # version()
-    # update_cache(apikey=os.environ.get("CDISC_LIBRARY_API_KEY"), cache_path='./resources/cache')
-    # list_ct(output="./reports/core_ct.json", subsets=[])
-    # list_dataset_metadata(output="./reports/core_dataset_metadata.json", dataset_path=['./testdata/sdtm/dm.xpt', './testdata/sdtm/ae.xpt', './testdata/sdtm/ex.xpt', './testdata/sdtm/lb.xpt'])
-    # list_rule_sets(output="./reports/core_rule_sets.json")
-    # list_rules(output="./reports/core_rules.json", standard='sdtmig', version='3-4')
+    version()
+    update_cache(apikey=os.environ.get("CDISC_LIBRARY_API_KEY"), cache_path='./resources/cache')
+    list_ct(output="./json/core_ct.json", subsets=[])
+    list_dataset_metadata(output="./json/core_dataset_metadata.json", dataset_path=['./testdata/sdtm/dm.xpt', './testdata/sdtm/ae.xpt', './testdata/sdtm/ex.xpt', './testdata/sdtm/lb.xpt'])
+    list_rule_sets(output="./json/core_rule_sets.json")
+    list_rules(output="./json/core_rules.json", standard='sdtmig', version='3-4')
 
     validate(
         standard='sdtmig',
@@ -536,8 +536,8 @@ if __name__ == "__main__":
         # data_format = "XPT",
         rules = ["CORE-000006", "CORE-000007", "CORE-000012", "CORE-000013", "CORE-000019", "CORE-000266", "CORE-000356"],
         define_xml_path='./testdata/sdtm/define.xml',
-        whodrug='./tests/resources/dictionaries/whodrug',
-        meddra='./tests/resources/dictionaries/meddra'
+        whodrug='./testdata/dictionaries/whodrug',
+        meddra='./testdata/dictionaries/meddra'
         # progress='disabled',
     )
 

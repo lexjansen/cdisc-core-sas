@@ -1,4 +1,4 @@
-%macro get_core_rules(core_standard=, core_standard_version=, dsout=data.core_rules, json_folder=&project_folder/json);
+%macro get_core_rules(core_standard=, core_standard_version=, dsout=metadata.core_rules, json_folder=&project_folder/json);
 
   filename rules "&json_folder/core_rules_&core_standard.-&core_standard_version..json";
 
@@ -126,19 +126,19 @@
     from
       jsonfile.root root
         left join work.standards standards
-      on (standards.ordinal_root=root.ordinal_root)
+      on (standards.ordinal_root = root.ordinal_root)
         left join work.domains_include domains_include
-      on (domains_include.ordinal_domains=root.ordinal_root)
+      on (domains_include.ordinal_domains = root.ordinal_root)
         left join work.domains_exclude domains_exclude
-      on (domains_exclude.ordinal_domains=root.ordinal_root)
+      on (domains_exclude.ordinal_domains = root.ordinal_root)
         left join work.classes_include classes_include
-      on (classes_include.ordinal_classes=root.ordinal_root)
+      on (classes_include.ordinal_classes = root.ordinal_root)
         left join work.classes_exclude classes_exclude
-      on (classes_exclude.ordinal_classes=root.ordinal_root)
+      on (classes_exclude.ordinal_classes = root.ordinal_root)
         left join work.datasets datasets
-      on (datasets.ordinal_root=root.ordinal_root)
+      on (datasets.ordinal_root = root.ordinal_root)
         left join jsonfile.actions actions
-      on (actions.ordinal_root=root.ordinal_root)
+      on (actions.ordinal_root = root.ordinal_root)
         left join jsonfile.actions_params params
       on (params.ordinal_actions = actions.ordinal_actions)
     ;
@@ -148,16 +148,17 @@
     set &dsout work._core_rules;
   run;  
   
-  ods excel options(sheet_name="&core_standard &core_standard_version" flow="tables" autofilter = 'all');
+  ods excel options(sheet_name = "&core_standard &core_standard_version" flow = "tables" autofilter = 'all');
   
-  proc print data=work._core_rules;
+  proc print data = work._core_rules;
     title "CORE Rules %sysfunc(date(), e8601da.)";
   run;
 
-  proc delete data=work._core_rules work.standards 
-                   work.domains_include work.domains_exclude
-                   classes_include classes_exclude  
-                   work.datasets; 
+  proc delete data = 
+    work._core_rules work.standards 
+    work.domains_include work.domains_exclude
+    classes_include classes_exclude  
+    work.datasets; 
   run;
 
   %exit_macro:

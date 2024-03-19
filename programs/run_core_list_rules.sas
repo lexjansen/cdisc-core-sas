@@ -2,12 +2,12 @@
 %* Check the programs/config.sas file for the Python configuration.           ;
 
 %* update this macro variable to your own location;
-%let project_folder=/_github/lexjansen/cdisc-core-sas;
+%let project_folder = /_github/lexjansen/cdisc-core-sas;
 
 %include "&project_folder/programs/config.sas";
 
 proc sql;
-  create table data.core_rules
+  create table metadata.core_rules
     (
      core_standard char(32),
      core_standard_version char(32),
@@ -28,17 +28,18 @@ proc sql;
 quit;
 
 ods listing close;
-ods html5 file="&project_folder/reports/core_rules.html";
-ods excel file="&project_folder/reports/core_rules.xlsx";
+ods html5 file = "&project_folder/reports/core_rules.html";
+ods excel file = "&project_folder/reports/core_rules.xlsx";
 
 data _null_;
-  set data.core_rulesets;
+  set metadata.core_rulesets;
   length code $ 1024;
-  if upcase(standard) eq "DDF" then
+  if upcase(standard) = "DDF" then
+  %* Foor DDF only get JSON ;
     code = cats('%nrstr(%get_core_rules(core_standard=', lowcase(standard), ', core_standard_version=', version, ', dsout=));');
   else
     code = cats('%nrstr(%get_core_rules(core_standard=', lowcase(standard), ', core_standard_version=', version, '));');
-  put code=;  
+  put code=;
   call execute(code);
 run;
 

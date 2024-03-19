@@ -2,7 +2,7 @@
 %* Check the programs/config.sas file for the Python configuration.           ;
 
 %* update this macro variable to your own location;
-%let project_folder=/_github/lexjansen/cdisc-core-sas;
+%let project_folder = /_github/lexjansen/cdisc-core-sas;
 
 %include "&project_folder/programs/config.sas";
 
@@ -20,7 +20,7 @@ run;
 
 libname jsonfile json fileref=ct;
 
-data data.core_ct(keep=value rename=(value=ct_package));
+data metadata.core_ct(keep=value rename=(value=ct_package));
   set jsonfile.alldata;
 run;
 

@@ -2,7 +2,7 @@
 %* Check the programs/config.sas file for the Python configuration.           ;
 
 %* update this macro variable to your own location;
-%let project_folder=/_github/lexjansen/cdisc-core-sas;
+%let project_folder = /_github/lexjansen/cdisc-core-sas;
 
 %include "&project_folder/programs/config.sas";
 
@@ -24,7 +24,7 @@
   raw_report = 0,
   data_format = XPT,
   define_xml_path = &project_folder/testdata/sdtm/define.xml,
-  whodrug = &project_folder/tests/resources/dictionaries/whodrug,
-  meddra = &project_folder/tests/resources/dictionaries/meddra,
+  whodrug = &project_folder/testdata/dictionaries/whodrug,
+  meddra = &project_folder/testdata/dictionaries/meddra,
   rules =
   );
