@@ -1,3 +1,5 @@
+%* All programs including this configuration program must define the project_folder macro variable;
+
 options sasautos =
   (%qsysfunc(compress(%qsysfunc(getoption(SASAUTOS)),%str(%()%str(%))))
   "&project_folder/macros");
