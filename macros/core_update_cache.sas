@@ -1,12 +1,12 @@
 /**
 
-@param apikey - required - CDISC Library api key. Can be provided in the environment variable CDISC_LIBRARY_API_KEY
+@param apikey - optional - CDISC Library api key. Can also be provided in the OS environment variable CDISC_LIBRARY_API_KEY
 @param cache_path - required - Relative path to cache files containing pre loaded metadata and rules
 
 **/
 
 %macro core_update_cache(
-  apikey= %sysfunc(sysget(CDISC_LIBRARY_API_KEY)),
+  apikey =,
   cache_path = %sysfunc(sysget(CORE_PATH))/resources/cache
   );
 
@@ -19,7 +19,6 @@
 
   %* Check for missing parameters ;
   %let _Missing =;
-  %if %sysevalf(%superq(apikey)=, boolean) %then %let _Missing = &_Missing apikey;
   %if %sysevalf(%superq(cache_path)=, boolean) %then %let _Missing = &_Missing cache_path;
 
   %if %length(&_Missing) > 0
