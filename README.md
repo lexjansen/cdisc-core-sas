@@ -26,7 +26,7 @@ These steps should be run before running the SAS programs.
 
 - Install the requirements.
 
-`python -m pip install -r <location of the "cdisc-rules-engine" folder in the  local repo clone>/requirements.txt` # From the root directory
+`python -m pip install -r requirements.txt` # From the root directory
 
 ## Environment variables
 
