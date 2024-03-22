@@ -26,5 +26,9 @@ data metadata.core_rulesets(keep=standard version);
   version = strip(scan(value, 2, ','));
 run;
 
+proc sort data = metadata.core_rulesets;
+  by standard version;
+run;  
+
 filename rulesets clear;
 libname jsonfile clear;

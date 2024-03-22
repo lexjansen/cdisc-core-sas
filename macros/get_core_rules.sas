@@ -141,6 +141,7 @@
       on (actions.ordinal_root = root.ordinal_root)
         left join jsonfile.actions_params params
       on (params.ordinal_actions = actions.ordinal_actions)
+    order by core_id, core_standard, core_standard_version  
     ;
   run;
 
