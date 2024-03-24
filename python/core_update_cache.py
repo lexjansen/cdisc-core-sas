@@ -9,6 +9,9 @@ def core_update_cache(apikey, cache_path):
   lib_path = os.path.abspath(os.path.join(__file__, core_path))
   if lib_path not in sys.path: sys.path.append(lib_path)
 
+  if not apikey:
+    apikey = os.environ["CDISC_LIBRARY_API_KEY"]
+
   import asyncio
   from cdisc_rules_engine.config import config
 

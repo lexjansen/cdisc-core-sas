@@ -1,34 +1,13 @@
-%* update this location to your own location;
-%let project_folder=/_github/lexjansen/cdisc-core-sas;
+%* This code assumes that your SAS environment is able to run Python objects. ;
+%* Check the programs/config.sas file for the Python configuration.           ;
+
+%* update this macro variable to your own location;
+%let project_folder = /_github/lexjansen/cdisc-core-sas;
+
 %include "&project_folder/programs/config.sas";
 
-/*
-This program assumes that your SAS environment is able to run Python objects.
-Check the programs/config.sas file for the Python configuration.
-
-Python objects require environment variables to be set before you can use Python objects in your SAS environment.
-If the environment variables have not been set, or if they have been set incorrectly,
-SAS returns an error when you publish your Python code. Environment variable related errors can look like these examples:
-
-ERROR: MAS_PYPATH environment variable is undefined.
-ERROR: The executable C:\file-path\python.exe cannot be located
-       or is not a valid executable.
-
-Also, this program assumes that your Python environment has packages as defined in cdisc-rules-engine/requirements.txt:
-
-More information:
-  Using PROC FCMP Python Objects:
-  https://documentation.sas.com/doc/en/pgmsascdc/9.4_3.5/lecompobjref/p18qp136f91aaqn1h54v3b6pkant.htm
-
-  Configuring SAS to Run the Python Language:
-  https://go.documentation.sas.com/doc/en/bicdc/9.4/biasag/n1mquxnfmfu83en1if8icqmx8cdf.htm
-*/
-
-
-/* 
-  This macro call assumes that you have an environment variable CDISC_LIBRARY_API_KEY.
-  If not, you can specify the API key.
-*/  
+%*  This macro call assumes that you have an environment variable CDISC_LIBRARY_API_KEY. ;
+%*  If not, you can specify the API key in the macro call.                               ;
 %core_update_cache(
   /* apikey= <your API key>, */
   cache_path = &project_folder/resources/cache

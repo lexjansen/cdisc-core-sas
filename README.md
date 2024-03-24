@@ -2,7 +2,7 @@
 
 Proof of Concept for running CDISC CORE within SAS.
 
-This Proof of Concepts was developed on Windows 10 with SAS 9.4 TS1M7.
+This Proof of Concepts is based on CORE release v0.6.3 (October 12, 2023) and was developed on Windows 10 with SAS 9.4 TS1M7.
 
 ## Supported python versions
 
@@ -12,10 +12,6 @@ This Proof of Concepts was developed on Windows 10 with SAS 9.4 TS1M7.
 ## Installing dependencies
 
 These steps should be run before running the SAS programs.
-
-- Create a local copy of the cdisc-rules-engine GitHub repo:
-
-  `git clone https://github.com/cdisc-org/cdisc-rules-engine.git`
 
 - Create a local copy of the lexjansen/cdisc-core-sas GitHub repo:
 
@@ -30,7 +26,7 @@ These steps should be run before running the SAS programs.
 
 - Install the requirements.
 
-`python -m pip install -r <location of cdisc-rules-engine local repo clone>/requirements.txt` # From the root directory
+`python -m pip install -r requirements.txt` # From the root directory
 
 ## Environment variables
 
@@ -39,7 +35,7 @@ Define the following OS environment variables:
 - `CORE_PATH` - Location of the local cdisc-rules-engine local repo clone
 - `CDISC_LIBRARY_API_KEY` - CDISC Library API Key for updating the rules cache
 
-Alternatively, these can be set in `programs/options.sas`.
+Alternatively, the CDISC_LIBRARY_API_KEY variable can be set in `programs/options.sas` or in the `core_update_cache` macro call.
 
 ## Run SAS programs
 
@@ -48,7 +44,6 @@ Check the options in `programs/options.sas` to be able to run Python:
 ```SAS
 options set = MAS_PYPATH = "&project_folder/.venv/Scripts/python.exe";
 options set = MAS_M2PATH = "%sysget(SASROOT)/tkmas/sasmisc/mas2py.py";
-options set = CORE_PATH = "/_github/cdisc-org/cdisc-rules-engine";
 ```
 
 Run the following SAS programs (make sure to update the `project_folder` macro variable in each program):
@@ -73,3 +68,6 @@ When encountering issues, please open an issue at [https://github.com/lexjansen/
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 This project is using the [MIT](http://www.opensource.org/licenses/MIT "The MIT License | Open Source Initiative") license (see [`LICENSE`](LICENSE)).
+
+![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
+The CDISC CORE Engine is licensed under the [MIT](http://www.opensource.org/licenses/MIT "The MIT License | Open Source Initiative") license (see [`LICENSE`](LICENSE-CDISC_RULES_ENGINE)).
