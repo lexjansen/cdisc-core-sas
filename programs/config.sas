@@ -38,8 +38,13 @@ options set = MAS_M2PATH = "%sysget(SASROOT)/tkmas/sasmisc/mas2py.py";
 
 options cmplib = macros.core_funcs;
 
+data _null_;
+  core_version = core_version();
+  call symputx('core_version', core_version);
+run;
+  
 %let core_path = %sysfunc(sysget(CORE_PATH));
 %put;
+%put NOTE: %str(CORE_VERSION: &core_version);
 %put NOTE: %str(CORE_PATH: &core_path);
-%put NOTE: %str(CORE_VERSION: %core_version());
 %put;
