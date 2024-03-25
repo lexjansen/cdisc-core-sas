@@ -43,6 +43,5 @@ def core_list_dataset_metadata(dataset_path, output: str):
     dataset_path = re.split(';|,', dataset_path)
     dataset_path = [item.strip(' ') for item in dataset_path if item !='']
     
-    # print(json.dumps(list_dataset_metadata_handler(dataset_path), indent=4))
     with open(output, "w") as f:
         json.dump(list_dataset_metadata_handler(dataset_path), f)

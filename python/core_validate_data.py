@@ -20,18 +20,14 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
       from typing import Tuple
       import re
 
-      # import click
       from pathlib import Path
       from cdisc_rules_engine.config import config
       from cdisc_rules_engine.constants.define_xml_constants import DEFINE_XML_FILE_NAME
       from cdisc_rules_engine.enums.default_file_paths import DefaultFilePaths
       from cdisc_rules_engine.enums.progress_parameter_options import ProgressParameterOptions
       from cdisc_rules_engine.enums.report_types import ReportTypes
-      # from cdisc_rules_engine.enums.dataformat_types import DataFormatTypes
       from cdisc_rules_engine.models.validation_args import Validation_args
-      # from cdisc_rules_engine.models.test_args import TestArgs
       from scripts.run_validation import run_validation
-      # from scripts.test_rule import test as test_rule
       from cdisc_rules_engine.services.cache.cache_populator_service import CachePopulator
       from cdisc_rules_engine.services.cache.cache_service_factory import CacheServiceFactory
       from cdisc_rules_engine.services.cdisc_library_service import CDISCLibraryService
@@ -41,21 +37,6 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
       )
       from scripts.list_dataset_metadata_handler import list_dataset_metadata_handler
       from version import __version__
-
-      # def valid_data_file(data_path: list) -> Tuple[list, set]:
-      #     allowed_formats = [format.value for format in DataFormatTypes]
-      #     found_formats = set()
-      #     file_list = []
-      #     for file in data_path:
-      #         file_extension = os.path.splitext(file)[1][1:].upper()
-      #         if file_extension in allowed_formats:
-      #             found_formats.add(file_extension)
-      #             file_list.append(file)
-      #     if len(found_formats) > 1:
-      #         return [], found_formats
-      #     elif len(found_formats) == 1:
-      #         return file_list, found_formats
-
 
       def valid_data_file(file_name: str, data_format: str):
           fn = os.path.basename(file_name)
@@ -123,15 +104,6 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
                   )
                   validation_message = "Argument --dataset-path cannot be used together with argument --data"
                   return validation_message
-              # dataset_paths, found_formats = valid_data_file(
-              #     [str(Path(data).joinpath(fn)) for fn in os.listdir(data)]
-              # )
-              # if len(found_formats) > 1:
-              #     logger.error(
-              #         f"Argument --data contains more than one allowed file format ({', '.join(found_formats)})."  # noqa: E501
-              #     )
-              #     validation_message = f"Argument --data contains more than one allowed file format ({', '.join(found_formats)})."
-              #     return validation_message
               dataset_paths: Iterable[str] = [
                   str(Path(data).joinpath(fn))
                   for fn in os.listdir(data)
@@ -144,13 +116,6 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
                   )
                   validation_message = "Argument --dataset-path cannot be used together with argument --data"
                   return validation_message
-              # dataset_paths, found_formats = valid_data_file([dp for dp in dataset_path])
-              # if len(found_formats) > 1:
-              #     logger.error(
-              #         f"Argument --dataset_path contains more than one allowed file format ({', '.join(found_formats)})."  # noqa: E501
-              #     )
-              #     validation_message = f"Argument --dataset_path contains more than one allowed file format ({', '.join(found_formats)})."
-              #     return validation_message
               dataset_paths: Iterable[str] = [
                   dp for dp in dataset_path if valid_data_file(dp, data_format)
               ]
