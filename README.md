@@ -1,6 +1,6 @@
 # cdisc-core-sas
 
-Proof of Concept for running CDISC CORE within SAS.
+The [cdisc-core-sas](https://github.com/lexjansen/cdisc-core-sas) contains working files and other artefacts to support a Proof of Concept for running CDISC CORE within SAS.
 
 This Proof of Concepts is based on CORE release v0.6.3 (October 12, 2023) and was developed on Windows 10 with SAS 9.4 TS1M7.
 
@@ -59,6 +59,10 @@ After this all the other SAS programs can run:
 - `programs/run_core_list_rule_sets.sas`
 - `programs/run_core_validate_data.sas`
 - `programs/run_core_validate_data_select.sas`
+
+## Documentation
+
+  The [doc](https://github.com/lexjansen/cdisc-core-sas/tree/main/doc) folder contains documentation: [Running the CDISC Open Rules Engine (CORE) in BASE SAS©](doc/cdisc-core-sas.pdf)
 
 ## Issues
 
