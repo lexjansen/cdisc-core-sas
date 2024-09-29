@@ -1,4 +1,6 @@
 from cdisc_rules_engine.config.config import ConfigService
+from cdisc_rules_engine.models.dataset.dask_dataset import DaskDataset
+from cdisc_rules_engine.models.dataset.pandas_dataset import PandasDataset
 from cdisc_rules_engine.operations.variable_count import VariableCount
 from cdisc_rules_engine.models.operation_params import OperationParams
 import pandas as pd
@@ -8,20 +10,24 @@ import os
 
 
 @pytest.mark.parametrize(
-    "target, expected",
-    [("DOMAIN", 2), ("--SEQ", 2), ("SPECIALVAR", 1)],
+    "target, expected, dataset_type",
+    [
+        ("DOMAIN", 2, PandasDataset),
+        ("--SEQ", 2, DaskDataset),
+        ("SPECIALVAR", 1, PandasDataset),
+    ],
 )
 def test_variable_count(
-    target, expected, mock_data_service, operation_params: OperationParams
+    target, expected, mock_data_service, operation_params: OperationParams, dataset_type
 ):
     config = ConfigService()
     cache = CacheServiceFactory(config).get_cache_service()
     dataset_path = os.path.join("study", "bundle", "blah")
     datasets_map = {
-        "AE": pd.DataFrame.from_dict(
+        "AE": dataset_type.from_dict(
             {"STUDYID": [4, 7, 9], "AESEQ": [1, 2, 3], "DOMAIN": [12, 6, 1]}
         ),
-        "EX": pd.DataFrame.from_dict(
+        "EX": dataset_type.from_dict(
             {
                 "STUDYID": [4, 8, 12],
                 "EXSEQ": [1, 2, 3],
@@ -29,10 +35,10 @@ def test_variable_count(
                 "SPECIALVAR": ["A", "B", "C"],
             }
         ),
-        "AE2": pd.DataFrame.from_dict(
+        "AE2": dataset_type.from_dict(
             {"STUDYID": [4, 7, 9], "AESEQ": [1, 2, 3], "DOMAIN": [12, 6, 1]}
         ),
-        "RELREC": pd.DataFrame.from_dict({"LNKGRP": ["DOMAIN", "EXSEQ", "AESEQ"]}),
+        "RELREC": dataset_type.from_dict({"LNKGRP": ["DOMAIN", "EXSEQ", "AESEQ"]}),
     }
 
     datasets = [
@@ -40,10 +46,12 @@ def test_variable_count(
         {"domain": "EX", "filename": "EX"},
         {"domain": "AE", "filename": "AE2"},
     ]
-    mock_data_service.get_dataset.side_effect = lambda name: datasets_map.get(
-        os.path.split(name)[-1]
+    mock_data_service.get_dataset.side_effect = (
+        lambda *args, **kwargs: datasets_map.get(
+            os.path.split(args[0] if args else kwargs.get("dataset_name"))[-1]
+        )
     )
-    mock_data_service.join_split_datasets.side_effect = lambda func, files: pd.concat(
+    mock_data_service.concat_split_datasets.side_effect = lambda func, files: pd.concat(
         [func(f) for f in files]
     )
     operation_params.datasets = datasets

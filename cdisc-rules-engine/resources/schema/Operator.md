@@ -480,6 +480,18 @@ Date check
   operator: "invalid_date"
 ```
 
+## invalid_duration
+
+Duration ISO-8601 check, returns True if a duration is not in ISO-8601 format. Parameter `negative` must be given to either allow or disallow negative durations as valid.
+
+> DURVAR is invalid
+
+```yaml
+- name: "BRTHDTC"
+  operator: "invalid_duration"
+  negative: "False"
+```
+
 # Metadata
 
 ## exists
@@ -524,53 +536,18 @@ Check:
       operator: "not_exists"
 ```
 
-## additional_columns_empty
+## inconsistent_enumerated_columns
 
-True if value in column `name` XXXXn is not empty and value in column XXXX(n+1) is empty
+Checks for inconsistencies in enumerated columns of a DataFrame. Starting with the smallest/largest enumeration of the given variable, returns True if VARIABLE(N+1) is populated but VARIABLE(N) is not populated. Repeats for all variables belonging to the enumeration. Note that the initial variable will not have an index (VARIABLE) and the next enumerated variable has index 1 (VARIABLE1).
 
-- ID: CG0262
-- Class: TDM
-- Domain: TS
-- Variable: TSVALn
-- Condition: TSVAL(n+1) ^= null
-- Rule: TSVALn ^= null
+ex: Check if there are inconsistencies in the TSVAL columns (TSVAL, TSVAL1, TSVAL2, etc.)
 
 ```yaml
-Scopes:
-  Domains:
-    - TS
 Check:
   all:
-    - operator: additional_columns_not_empty
-      name: --VAL
+    - name: "TSVAL"
+      operator: "inconsistent_enumerated_columns"
 ```
-
-This operator is technically compatible with COVALn. There is no similar rule for it.
-
-## additional_columns_not_empty
-
-Complement of `additional_columns_empty`
-
-True if value in column `name` XXXXn is empty and value in column XXXX(n+1) is not empty
-
-- ID: CG0262
-- Class: TDM
-- Domain: TS
-- Variable: TSVALn
-- Condition: TSVAL(n+1) ^= null
-- Rule: TSVALn ^= null
-
-```yaml
-Scopes:
-  Domains:
-    - TS
-Check:
-  all:
-    - operator: additional_columns_not_empty
-      name: --VAL
-```
-
-This operator is technically compatible with COVALn. There is no similar rule for it.
 
 ## variable_metadata_equal_to
 
@@ -861,11 +838,12 @@ Check:
 
 ## empty_within_except_last_row
 
-> SEENDTC is not empty when it is not the last record, grouped by USUBJID
+> SEENDTC is not empty when it is not the last record, grouped by USUBJID, sorted by SESTDTC
 
 ```yaml
 - name: SEENDTC
   operator: empty_within_except_last_row
+  ordering: SESTDTC
   value: USUBJID
 ```
 

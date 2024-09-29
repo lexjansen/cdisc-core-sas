@@ -2,8 +2,12 @@ from typing import Type
 
 from cdisc_rules_engine.interfaces import FactoryInterface
 from cdisc_rules_engine.operations.base_operation import BaseOperation
+from cdisc_rules_engine.operations.dataset_names import DatasetNames
 from cdisc_rules_engine.operations.dataset_column_order import DatasetColumnOrder
 from cdisc_rules_engine.operations.day_data_validator import DayDataValidator
+from cdisc_rules_engine.operations.define_dictionary_version_validator import (
+    DefineDictionaryVersionValidator,
+)
 from cdisc_rules_engine.operations.distinct import Distinct
 from cdisc_rules_engine.operations.extract_metadata import ExtractMetadata
 from cdisc_rules_engine.operations.library_column_order import LibraryColumnOrder
@@ -36,6 +40,12 @@ from cdisc_rules_engine.operations.meddra_term_references_validator import (
 from cdisc_rules_engine.operations.min_date import MinDate
 from cdisc_rules_engine.operations.minimum import Minimum
 from cdisc_rules_engine.operations.record_count import RecordCount
+from cdisc_rules_engine.operations.valid_external_dictionary_code import (
+    ValidExternalDictionaryCode,
+)
+from cdisc_rules_engine.operations.valid_external_dictionary_code_term_pair import (
+    ValidExternalDictionaryCodeTermPair,
+)
 from cdisc_rules_engine.operations.variable_exists import VariableExists
 from cdisc_rules_engine.operations.variable_names import VariableNames
 from cdisc_rules_engine.operations.variable_value_count import VariableValueCount
@@ -71,6 +81,7 @@ from cdisc_rules_engine.operations.valid_external_dictionary_value import (
 
 class OperationsFactory(FactoryInterface):
     _operations_map = {
+        "dataset_names": DatasetNames,
         "distinct": Distinct,
         "dy": DayDataValidator,
         "extract_metadata": ExtractMetadata,
@@ -108,6 +119,9 @@ class OperationsFactory(FactoryInterface):
         "name_referenced_variable_metadata": NameReferencedVariableMetadata,
         "define_variable_metadata": DefineVariableMetadata,
         "valid_external_dictionary_value": ValidExternalDictionaryValue,
+        "valid_external_dictionary_code": ValidExternalDictionaryCode,
+        "valid_external_dictionary_code_term_pair": ValidExternalDictionaryCodeTermPair,
+        "valid_define_external_dictionary_version": DefineDictionaryVersionValidator,
     }
 
     @classmethod

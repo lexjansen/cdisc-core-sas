@@ -1,4 +1,7 @@
 from cdisc_rules_engine.exceptions.custom_exceptions import InvalidDictionaryVariable
+from cdisc_rules_engine.models.dictionaries.base_external_dictionary import (
+    ExternalDictionary,
+)
 from cdisc_rules_engine.models.dictionaries.meddra.meddra_validator import (
     MedDRAValidator,
 )
@@ -44,7 +47,7 @@ def test_is_valid_term_case_sensitive(
     }
 
     assert (
-        MedDRAValidator(terms=terms_dictionary).is_valid_term(
+        MedDRAValidator(terms=ExternalDictionary(terms_dictionary)).is_valid_term(
             term, term_type, variable, case_sensitive=True
         )
         == expected_outcome
@@ -85,7 +88,37 @@ def test_is_valid_term_case_insensitive(
     }
 
     assert (
-        MedDRAValidator(terms=terms_dictionary).is_valid_term(term, term_type, variable)
+        MedDRAValidator(terms=ExternalDictionary(terms_dictionary)).is_valid_term(
+            term, term_type, variable
+        )
+        == expected_outcome
+    )
+
+
+@pytest.mark.parametrize(
+    "term, term_type, variable, expected_outcome",
+    [
+        ("1234", "PT", f"--{MedDRAVariables.DECOD.value}", True),
+        ("A32", "SOC", f"--{MedDRAVariables.SOCCD.value}", True),
+        ("A32", "SOC", f"--{MedDRAVariables.SOC.value}", True),
+        ("soc_term", "SOC", f"--{MedDRAVariables.SOC.value}", False),
+    ],
+)
+def test_is_valid_code_case_sensitive(
+    term: str, term_type: str, variable: str, expected_outcome
+):
+    terms_dictionary = {
+        TermTypes.SOC.value: {"A32": MedDRATerm({"term": "soc_term"})},
+        TermTypes.PT.value: {"1234": MedDRATerm({"term": "ABCD"})},
+        TermTypes.HLT.value: {"HLT1": MedDRATerm({"term": "HLT_TERM"})},
+        TermTypes.HLGT.value: {"HLGT1": MedDRATerm({"term": "HLGT_TERM"})},
+        TermTypes.LLT.value: {"LLT1": MedDRATerm({"term": "LLT_TERM"})},
+    }
+
+    assert (
+        MedDRAValidator(terms=ExternalDictionary(terms_dictionary)).is_valid_code(
+            term, term_type, variable, case_sensitive=True
+        )
         == expected_outcome
     )
 
@@ -100,6 +133,6 @@ def test_is_valid_term_throws_error_on_invalid_variable():
     }
 
     with pytest.raises(InvalidDictionaryVariable):
-        MedDRAValidator(terms=terms_dictionary).is_valid_term(
+        MedDRAValidator(terms=ExternalDictionary(terms_dictionary)).is_valid_term(
             "AAA", "TEST", "--INVALID_VARIABLE"
         )

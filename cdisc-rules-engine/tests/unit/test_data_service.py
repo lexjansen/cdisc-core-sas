@@ -1,10 +1,10 @@
 from typing import List
 from unittest.mock import Mock, patch, MagicMock
+from cdisc_rules_engine.models.dataset.pandas_dataset import PandasDataset
 from cdisc_rules_engine.models.library_metadata_container import (
     LibraryMetadataContainer,
 )
 
-import pandas as pd
 import pytest
 import os
 from cdisc_rules_engine.models.dataset_metadata import DatasetMetadata
@@ -16,6 +16,14 @@ from cdisc_rules_engine.constants.classes import (
     FINDINGS_ABOUT,
     INTERVENTIONS,
     EVENTS,
+    RELATIONSHIP,
+    TRIAL_DESIGN,
+    STUDY_REFERENCE,
+)
+
+from cdisc_rules_engine.models.validation_args import Validation_args
+from scripts.script_utils import (
+    get_library_metadata_from_cache,
 )
 
 
@@ -29,11 +37,11 @@ def test_get_dataset_metadata(mock_read_metadata: MagicMock, dataset_metadata: d
     cache_mock.get = lambda cache_key: None
 
     data_service = LocalDataService(cache_mock, MagicMock(), MagicMock())
-    actual_metadata: pd.DataFrame = data_service.get_dataset_metadata(
+    actual_metadata: PandasDataset = data_service.get_dataset_metadata(
         dataset_name="dataset_name"
     )
     assert actual_metadata.equals(
-        pd.DataFrame.from_dict(
+        PandasDataset.from_dict(
             {
                 "dataset_size": [dataset_metadata["file_metadata"]["size"]],
                 "dataset_location": [dataset_metadata["file_metadata"]["name"]],
@@ -55,7 +63,7 @@ def test_get_raw_dataset_metadata(
 
     # mock cache service
     cache_mock = MagicMock()
-    cache_mock.get = lambda cache_key: None
+    cache_mock.get_dataset = lambda cache_key: None
 
     data_service = LocalDataService(cache_mock, MagicMock(), MagicMock())
     actual_metadata: DatasetMetadata = data_service.get_raw_dataset_metadata(
@@ -86,30 +94,66 @@ def test_get_raw_dataset_metadata(
             "ae.xpt",
         ),
         (
-            [{"domain": "AE", "filename": "ae.xpt"}],
-            {"DOMAIN": ["AE"], "AETRT": ["test"]},
+            [{"domain": "CM", "filename": "cm.xpt"}],
+            {"DOMAIN": ["CM"], "CMTRT": ["test"]},
             INTERVENTIONS,
-            "ae.xpt",
+            "cm.xpt",
         ),
         (
-            [{"domain": "AE", "filename": "ae.xpt"}],
-            {"DOMAIN": ["AE"], "AETESTCD": ["test"]},
+            [{"domain": "VS", "filename": "vs.xpt"}],
+            {"DOMAIN": ["VS"], "VSTESTCD": ["test"]},
             FINDINGS,
-            "ae.xpt",
+            "vs.xpt",
         ),
         (
-            [{"domain": "AE", "filename": "ae.xpt"}],
-            {"DOMAIN": ["AE"], "AETESTCD": ["test"], "AEOBJ": ["test"]},
+            [{"domain": "FA", "filename": "fa.xpt"}],
+            {"DOMAIN": ["FA"], "FATESTCD": ["test"], "FAOBJ": ["test"]},
             FINDINGS_ABOUT,
-            "ae.xpt",
+            "fa.xpt",
         ),
         (
-            [{"domain": "AE", "filename": "ae.xpt"}],
-            {"DOMAIN": ["AE"], "AEOBJ": ["test"]},
-            None,
-            "ae.xpt",
+            [{"domain": "FA", "filename": "famh.xpt"}],
+            {"DOMAIN": ["FA"], "FATESTCD": ["test"], "FAOBJ": ["test"]},
+            FINDINGS_ABOUT,
+            "famh.xpt",
         ),
-        ([{"domain": "AE", "filename": "ae.xpt"}], {"UNKNOWN": ["test"]}, None, "None"),
+        (
+            [{"domain": "RELREC", "filename": "relrec.xpt"}],
+            {"RDOMAIN": ["AE"], "IDVAR": ["test"], "POOLID": ["test"]},
+            RELATIONSHIP,
+            "relrec.xpt",
+        ),
+        (
+            [{"domain": "SUPPAE", "filename": "suppae.xpt"}],
+            {"RDOMAIN": ["AE"], "IDVAR": ["test"], "QNAM": ["test"]},
+            RELATIONSHIP,
+            "suppae.xpt",
+        ),
+        (
+            [{"domain": "SQAPFAMH", "filename": "sqapfamh.xpt"}],
+            {"RDOMAIN": ["APFAMH"], "IDVAR": ["test"], "QNAM": ["test"]},
+            RELATIONSHIP,
+            "sqapfamh.xpt",
+        ),
+        (
+            [{"domain": "OI", "filename": "oi.xpt"}],
+            {"DOMAIN": ["OI"], "OIPARMCD": ["test"], "OIPARM": ["test"]},
+            STUDY_REFERENCE,
+            "oi.xpt",
+        ),
+        (
+            [{"domain": "TS", "filename": "ts.xpt"}],
+            {"DOMAIN": ["TS"], "TSPARMCD": ["test"], "TSPARM": ["test"]},
+            TRIAL_DESIGN,
+            "ts.xpt",
+        ),
+        (
+            [{"domain": "XX", "filename": "xx.xpt"}],
+            {"DOMAIN": ["XX"], "XXOBJ": ["test"]},
+            None,
+            "xx.xpt",
+        ),
+        ([{"domain": "XY", "filename": "xy.xpt"}], {"UNKNOWN": ["test"]}, None, "None"),
         (
             [{"domain": "DM", "filename": "dm.xpt"}],
             {"UNKNOWN": ["test"]},
@@ -119,12 +163,33 @@ def test_get_raw_dataset_metadata(
     ],
 )
 def test_get_dataset_class(datasets, data, expected_class, filename):
-    df = pd.DataFrame.from_dict(data)
+    df = PandasDataset.from_dict(data)
     mock_cache_service = MagicMock()
-    library_metadata = LibraryMetadataContainer(
-        standard_metadata={
-            "classes": [{"name": "SPECIAL PURPOSE", "datasets": [{"name": "DM"}]}]
-        }
+    library_metadata: LibraryMetadataContainer = get_library_metadata_from_cache(
+        Validation_args(
+            f"{os.path.dirname(__file__)}/../../resources/cache",
+            10,
+            [],
+            "",
+            "",
+            "sdtmig",
+            "3-4",
+            "",
+            "",
+            "",
+            False,
+            "",
+            None,
+            None,
+            None,
+            None,
+            "",
+            "",
+            None,
+            None,
+            "",
+            None,
+        )
     )
     data_service = LocalDataService(
         mock_cache_service,
@@ -141,7 +206,7 @@ def test_get_dataset_class(datasets, data, expected_class, filename):
 
 
 def test_get_dataset_class_without_standard_and_version():
-    df = pd.DataFrame.from_dict({"UNKNOWN": ["test"]})
+    df = PandasDataset.from_dict({"UNKNOWN": ["test"]})
     mock_cache_service = MagicMock()
     mock_cache_service.get.return_value = {
         "classes": [{"name": "SPECIAL PURPOSE", "datasets": [{"name": "DM"}]}]
@@ -158,8 +223,8 @@ def test_get_dataset_class_associated_domains():
         {"domain": "APCE", "filename": "ap.xpt"},
         {"domain": "CE", "filename": "ce.xpt"},
     ]
-    ap_dataset = pd.DataFrame.from_dict({"DOMAIN": ["APCE"]})
-    ce_dataset = pd.DataFrame.from_dict({"DOMAIN": ["CE"], "CETERM": ["test"]})
+    ap_dataset = PandasDataset.from_dict({"DOMAIN": ["APCE"]})
+    ce_dataset = PandasDataset.from_dict({"DOMAIN": ["CE"], "CETERM": ["test"]})
     data_bundle_path = "cdisc/databundle"
     path_to_dataset_map: dict = {
         os.path.join(data_bundle_path, "ap.xpt"): ap_dataset,
@@ -170,7 +235,40 @@ def test_get_dataset_class_associated_domains():
         return_value=ap_dataset,
         side_effect=lambda dataset_name: path_to_dataset_map[dataset_name],
     ):
-        data_service = LocalDataService(MagicMock(), MagicMock(), MagicMock())
+        library_metadata: LibraryMetadataContainer = get_library_metadata_from_cache(
+            Validation_args(
+                f"{os.path.dirname(__file__)}/../../resources/cache",
+                10,
+                [],
+                "",
+                "",
+                "sdtmig",
+                "3-4",
+                "",
+                "",
+                "",
+                False,
+                "",
+                None,
+                None,
+                None,
+                None,
+                "",
+                "",
+                None,
+                None,
+                "",
+                None,
+            )
+        )
+        data_service = LocalDataService(
+            MagicMock(),
+            MagicMock(),
+            MagicMock(),
+            standard="sdtmig",
+            standard_version="3-4",
+            library_metadata=library_metadata,
+        )
         filepath = f"{data_bundle_path}/ce.xpt"
         class_name = data_service.get_dataset_class(
             ap_dataset, filepath, datasets, "CE"
@@ -196,9 +294,9 @@ def test_cached_data_cache_exists():
     cache_key: str = get_dataset_cache_key_from_path(
         test_dataset_name, DatasetTypes.CONTENTS.value
     )
-    test_cache_data: dict = {cache_key: pd.DataFrame()}
+    test_cache_data: dict = {cache_key: PandasDataset()}
     instance_to_pass = Mock()
-    instance_to_pass.cache_service.get = lambda x: test_cache_data[x]
+    instance_to_pass.cache_service.get_dataset = lambda x: test_cache_data[x]
 
     # ensure that cache data was returned
     result = to_be_decorated(instance_to_pass, dataset_name=test_dataset_name)
@@ -212,7 +310,7 @@ def test_cached_data_empty_cache():
     a wrapped function has to be called.
     """
     test_dataset_name: str = "CDISC01/test/ae.xpt"
-    test_df = pd.DataFrame.from_dict({"AETESTCD": [100]})
+    test_df = PandasDataset.from_dict({"AETESTCD": [100]})
 
     # create a test wrapped function
     @cached_dataset(DatasetTypes.CONTENTS.value)
@@ -222,9 +320,9 @@ def test_cached_data_empty_cache():
 
     # mock cache get() and add() methods
     instance_to_pass = Mock()
-    instance_to_pass.cache_service.get = lambda x: None
+    instance_to_pass.cache_service.get_dataset = lambda x: None
     mock_db = {}
-    instance_to_pass.cache_service.add = lambda key, dataset: mock_db.update(
+    instance_to_pass.cache_service.add_dataset = lambda key, dataset: mock_db.update(
         {key: dataset}
     )
 

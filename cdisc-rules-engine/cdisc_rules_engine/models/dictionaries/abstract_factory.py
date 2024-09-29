@@ -10,12 +10,16 @@ from .dictionary_types import (
 )
 from .meddra import MedDRATermsFactory
 from .whodrug import WhoDrugTermsFactory
+from .loinc import LoincTermsFactory
+from .medrt import MEDRTTermsFactory
 
 
 class AbstractTermsFactory(FactoryInterface):
     _registered_services_map: dict = {
         DictionaryTypes.MEDDRA.value: MedDRATermsFactory,
         DictionaryTypes.WHODRUG.value: WhoDrugTermsFactory,
+        DictionaryTypes.LOINC.value: LoincTermsFactory,
+        DictionaryTypes.MEDRT.value: MEDRTTermsFactory,
     }
 
     def __init__(self, data_service: DataServiceInterface):

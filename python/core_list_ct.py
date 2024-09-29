@@ -21,7 +21,7 @@ def core_list_ct(subsets, output: str, cache_path: str):
         subsets = set([subset.lower() for subset in subsets])
     ctset=[]
     for file in os.listdir(cache_path):
-        file_prefix = file[0:file.find('ct-')+2]
+        file_prefix = file[0 : file.find("ct-") + 2]
         if file_prefix.endswith("ct") and (not subsets or file_prefix in subsets):
             ct = os.path.splitext(file)[0]
             print(ct)

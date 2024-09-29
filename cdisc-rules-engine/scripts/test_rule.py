@@ -30,7 +30,6 @@ from cdisc_rules_engine.utilities.utils import generate_report_filename
 from scripts.script_utils import (
     fill_cache_with_dictionaries,
     get_cache_service,
-    get_datasets,
     get_library_metadata_from_cache,
 )
 from cdisc_rules_engine.utilities.utils import get_directory_path
@@ -67,9 +66,12 @@ def validate_single_rule(
         ct_packages=args.controlled_terminology_package,
         meddra_path=args.meddra,
         whodrug_path=args.whodrug,
+        loinc_path=args.loinc,
+        medrt_path=args.medrt,
         define_xml_path=args.define_xml_path,
         library_metadata=library_metadata,
         validate_xml=args.validate_xml,
+        dataset_paths=args.dataset_path,
     )
     validated_domains = set()
     results = []
@@ -122,7 +124,7 @@ def test(args: TestArgs):
     library_metadata: LibraryMetadataContainer = get_library_metadata_from_cache(args)
     # install dictionaries if needed
     fill_cache_with_dictionaries(shared_cache, args)
-    with open(args.rule, "r") as f:
+    with open(args.rule, "r", encoding="utf-8") as f:
         rules = [Rule.from_cdisc_metadata(json.load(f))]
     with open(args.dataset_path, "r") as f:
         data_json = json.load(f)
@@ -174,15 +176,19 @@ def test(args: TestArgs):
         ["XLSX"],
         None,
         args.define_version,
-        "xpt",
         args.meddra,
         args.whodrug,
+        args.loinc,
+        args.medrt,
         rules,
+        None,
+        None,
+        None,
         ProgressParameterOptions.BAR.value,
         args.define_xml_path,
     )
     reporting_factory = ReportFactory(
-        get_datasets(dummy_data_service, [dataset.filename for dataset in datasets]),
+        dummy_data_service.get_datasets(),
         results,
         elapsed_time,
         validation_args,

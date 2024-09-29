@@ -39,10 +39,14 @@ def core_update_cache(apikey, cache_path):
           os.path.join(cache_path, DefaultFilePaths.STANDARD_MODELS_CACHE_FILE.value)
       )
       cache_populator.save_variable_codelist_maps_locally(
-          os.path.join(cache_path, DefaultFilePaths.VARIABLE_CODELIST_CACHE_FILE.value)
+          os.path.join(
+              cache_path, DefaultFilePaths.VARIABLE_CODELIST_CACHE_FILE.value
+          )
       )
       cache_populator.save_variables_metadata_locally(
-          os.path.join(cache_path, DefaultFilePaths.VARIABLE_METADATA_CACHE_FILE.value)
+          os.path.join(
+              cache_path, DefaultFilePaths.VARIABLE_METADATA_CACHE_FILE.value
+          )
       )
 
   update_cache(apikey=apikey, cache_path=cache_path)

@@ -200,6 +200,13 @@
     },
     {
       "properties": {
+        "operator": { "const": "dataset_names" }
+      },
+      "required": ["id", "operator"],
+      "type": "object"
+    },
+    {
+      "properties": {
         "operator": {
           "const": "valid_codelist_dates"
         }
@@ -207,6 +214,16 @@
       "required": ["id", "operator"],
       "type": "object"
     },
+    {
+      "properties": {
+        "operator": {
+          "const": "valid_define_external_dictionary_version"
+        }
+      },
+      "required": ["id", "operator", "external_dictionary_type"],
+      "type": "object"
+    },
+
     {
       "properties": {
         "operator": {
@@ -219,6 +236,36 @@
         "name",
         "external_dictionary_type",
         "dictionary_term_type"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "operator": {
+          "const": "valid_external_dictionary_code"
+        }
+      },
+      "required": [
+        "id",
+        "operator",
+        "name",
+        "external_dictionary_type",
+        "dictionary_term_type"
+      ],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "operator": {
+          "const": "valid_external_dictionary_code_term_pair"
+        }
+      },
+      "required": [
+        "id",
+        "operator",
+        "name",
+        "external_dictionary_type",
+        "external_dictionary_term_variable"
       ],
       "type": "object"
     },
@@ -349,7 +396,14 @@
     "external_dictionary_type": {
       "enum": ["meddra"]
     },
+    "filter": { "type": "object" },
     "group": {
+      "items": {
+        "$ref": "CORE-base.json#/$defs/VariableName"
+      },
+      "type": "array"
+    },
+    "group_aliases": {
       "items": {
         "$ref": "CORE-base.json#/$defs/VariableName"
       },

@@ -36,9 +36,17 @@ If no target variable `name` specified, returns a dictionary containing the spec
   }
   ```
 
+## dataset_names
+
+Returns a list of the submitted dataset filenames in all uppercase
+
+ex. if TS.xpt, AE.xpt, EC.xpt, and SUPPEC.xpt are submitted -> [TS, AE, EC, SUPPEC] will be returned
+
 ## distinct
 
 Get a distinct list of values for the given `name`. If a `group` list is specified, the distinct value list will be grouped by the variables within `group`.
+
+If `group` is provided, `group_aliases` may also be provided to assign new grouping variable names so that results grouped by the values in one set of grouping variables can be merged onto a dataset according to the same grouping value(s) stored in different set of grouping variables. When both `group` and `group_aliases` are provided, columns are renamed according to corresponding list position (i.e., the 1st column in `group` is renamed to the 1st column in `group_aliases`, etc.). If there are more columns listed in `group` than in `group_aliases`, only the `group` columns with corresponding `group_aliases` columns will be renamed. If there are more columns listed in `group_aliases` than in `group`, the extra column names in `group_aliases` will be ignored. See [record_count](#record_count) for an example of the use of `group_aliases`.
 
 ```yaml
 Check:
@@ -51,13 +59,13 @@ Check:
       operator: does_not_contain
       value: DEATH
       value_is_literal: true
-  Operations:
-    - operator: distinct
-      domain: DS
-      name: DSDECOD
-      id: $ds_dsdecod
-      group:
-        - USUBJID
+Operations:
+  - operator: distinct
+    domain: DS
+    name: DSDECOD
+    id: $ds_dsdecod
+    group:
+      - USUBJID
 ```
 
 ## domain_is_custom
@@ -312,8 +320,8 @@ Generates a dataframe where each record in the dataframe is the library ig varia
   Rule:
 
   ```yaml
-  - operation: label_referenced_variable_metadata`
-    id: $label_referenced_variable_metadata`
+  - operation: label_referenced_variable_metadata
+    id: $label_referenced_variable_metadata
     name: "QLABEL"
   ```
 
@@ -515,7 +523,62 @@ Returns the permissible variables for a given domain and standard
 
 ## record_count
 
-Returns the number of records in the dataset
+If no `filter` or `group` is provided, returns the number of records in the dataset. If `filter` is provided, returns the number of records in the dataset that contain the value(s) in the corresponding column(s) provided in the filter. If `group` is provided, returns the number of rows matching each unique set of the grouping variables. If both `filter` and `group` are provided, returns the number of records in the dataset that contain the value(s) in the corresponding column(s) provided in the filter that also match each unique set of the grouping variables.
+
+If `group` is provided, `group_aliases` may also be provided to assign new grouping variable names so that results grouped by the values in one set of grouping variables can be merged onto a dataset according to the same grouping value(s) stored in different set of grouping variables. When both `group` and `group_aliases` are provided, columns are renamed according to corresponding list position (i.e., the 1st column in `group` is renamed to the 1st column in `group_aliases`, etc.). If there are more columns listed in `group` than in `group_aliases`, only the `group` columns with corresponding `group_aliases` columns will be renamed. If there are more columns listed in `group_aliases` than in `group`, the extra column names in `group_aliases` will be ignored.
+
+Example: return the number of records in a dataset.
+
+```yaml
+- operation: record_count
+  id: $records_in_dataset
+```
+
+Example: return the number of records where STUDYID = "CDISC01" and FLAGVAR = "Y".
+
+```yaml
+- operation: record_count
+  id: $flagged_cdisc01_records_in_dataset
+  filter:
+    STUDYID: "CDISC01"
+    FLAGVAR: "Y"
+```
+
+Example: return the number of records grouped by USUBJID.
+
+```yaml
+- operation: record_count
+  id: $records_per_usubjid
+  group:
+    - USUBJID
+```
+
+Example: return the number of records grouped by USUBJID where FLAGVAR = "Y".
+
+```yaml
+- operation: record_count
+  id: $flagged_records_per_usubjid
+  group:
+    - USUBJID
+  filter:
+    FLAGVAR: "Y"
+```
+
+Example: return the number of records grouped by USUBJID and IDVARVAL where QNAM = "TEST1" and IDVAR = "GROUPID", renaming the IDVARVAL column to GROUPID for subsequent merging.
+
+```yaml
+- operation: record_count
+  id: $test1_records_per_usubjid_groupid
+  group:
+    - USUBJID
+    - IDVARVAL
+  filter:
+    QNAM: "TEST1"
+    IDVAR: "GROUPID"
+  group_aliases:
+    - USUBJID
+    - GROUPID
+```
 
 ## required_variables
 
@@ -530,8 +593,8 @@ Returns the required variables for a given domain and standard
   Version: `3-4`
 
   ```yaml
-  - operation: required_variables`
-    id: $required_variables`
+  - operation: required_variables
+    id: $required_variables
   ```
 
 - Output:
@@ -567,6 +630,25 @@ the operation will return
 ["2023-10-26", "2023-12-13"]
 ```
 
+## valid_define_external_dictionary_version
+
+Returns true if the version of an external dictionary provided in the define.xml file matches
+the version parsed from the dictionary files.
+
+Input:
+
+```yaml
+- operation: valid_define_external_dictionary_version
+  id: $is_valid_loinc_version
+  external_dictionary_type: loinc
+```
+
+Output:
+
+```json
+[true, true, true, true]
+```
+
 ## valid_external_dictionary_value
 
 Returns true if the target variable contains a valid external dictionary value, otherwise false
@@ -582,6 +664,48 @@ Input:
   external_dictionary_type: meddra
   dictionary_term_type: PT
   case_sensitive: false
+```
+
+Output:
+
+```json
+[true, false, false, true]
+```
+
+## valid_external_dictionary_code
+
+Returns true if the target variable contains a valid external dictionary code, otherwise false
+
+Input:
+
+```yaml
+- operation: valid_external_dictionary_code
+  name: --COD
+  id: $is_valid_cod_code
+  external_dictionary_type: meddra
+  dictionary_term_type: PT
+```
+
+Output:
+
+```json
+[true, false, false, true]
+```
+
+## valid_external_dictionary_code_term_pair
+
+Returns true if the row in the dataset contains a matching pair of code and term, otherwise false
+
+For this operator, the name parameter should contain the name of the variable containing the code, and the
+external_dictionary_term_variable parameter should contain the name of the variable containing the term
+Input:
+
+```yaml
+- operation: valid_external_dictionary_code_term_pair
+  name: --COD
+  id: $is_valid_loinc_code_term_pair
+  external_dictionary_type: loinc
+  external_dictionary_term_variable: --DECOD
 ```
 
 Output:

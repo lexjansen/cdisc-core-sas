@@ -69,6 +69,7 @@ def test_read_define_xml():
                 "define_dataset_name",
                 "define_dataset_label",
                 "define_dataset_location",
+                "define_dataset_domain",
                 "define_dataset_class",
                 "define_dataset_structure",
                 "define_dataset_is_non_standard",
@@ -90,6 +91,7 @@ def test_extract_domain_metadata(filename):
             "define_dataset_name": "TS",
             "define_dataset_label": "Trial Summary",
             "define_dataset_location": "ts.xml",
+            "define_dataset_domain": "TS",
             "define_dataset_class": "TRIAL DESIGN",
             "define_dataset_structure": "One record per trial summary parameter value",
             "define_dataset_is_non_standard": "",
@@ -154,7 +156,7 @@ def test_extract_variable_metadata(filename):
             "define_variable_order_number": 11,
             "define_variable_has_comment": True,
         }
-        for variable in variable_metadata:
+        for index, variable in enumerate(variable_metadata):
             assert variable["define_variable_name"] in expected_variables
             if (
                 variable["define_variable_name"]
@@ -162,6 +164,26 @@ def test_extract_variable_metadata(filename):
             ):
                 for key in expected_exroute_metadata.keys():
                     assert variable[key] == expected_exroute_metadata[key]
+
+            assert variable["define_variable_order_number"] == index + 1
+
+
+@pytest.mark.parametrize("filename", [(test_define_file_path)])
+def test_extract_variable_metadata_when_one_ordernumber_non_1_based(filename):
+    """
+    Unit test for DefineXMLReader.extract_domain_metadata function.
+    """
+    with open(filename, "rb") as file:
+        contents: bytes = file.read()
+        reader = DefineXMLReaderFactory.from_file_contents(contents)
+        variable_metadata: List[dict] = reader.extract_variables_metadata(
+            domain_name="AE"
+        )
+        for index, variable in enumerate(variable_metadata):
+            if index == 0:
+                assert variable["define_variable_order_number"] != index + 1
+            else:
+                assert variable["define_variable_order_number"] == index + 1
 
 
 def test_extract_variable_metadata_with_has_no_data():
@@ -337,3 +359,12 @@ def test_get_domain_key_sequence_for_supp():
             "IDVARVAL",
             "QNAM",
         ]
+
+
+@pytest.mark.parametrize("dictionary_type, expected_version", [("meddra", "22.0")])
+def test_read_dictionary_version(dictionary_type, expected_version):
+    with open(test_define_file_path, "rb") as file:
+        contents = file.read()
+        reader = DefineXMLReaderFactory.from_file_contents(contents)
+        version = reader.get_external_dictionary_version(dictionary_type)
+    assert version == expected_version
