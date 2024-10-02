@@ -1,6 +1,6 @@
 def core_list_ct(subsets, output: str, cache_path: str):
     """Output: """
-    
+
     """
     Command to list the ct packages available in the cache.
     """
@@ -16,7 +16,7 @@ def core_list_ct(subsets, output: str, cache_path: str):
     import json
 
     subsets = [item.strip(' ') for item in subsets if item !='']
-    
+
     if subsets:
         subsets = set([subset.lower() for subset in subsets])
     ctset=[]
@@ -27,4 +27,4 @@ def core_list_ct(subsets, output: str, cache_path: str):
             print(ct)
             ctset.append(ct)
     with open(output, "w") as f:
-        json.dump(ctset, f)
+        json.dump(ctset, f, indent=4)

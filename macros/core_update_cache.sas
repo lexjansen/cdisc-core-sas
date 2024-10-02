@@ -2,12 +2,19 @@
 
 @param apikey - optional - CDISC Library api key. Can also be provided in the OS environment variable CDISC_LIBRARY_API_KEY
 @param cache_path - required - Relative path to cache files containing pre loaded metadata and rules
-
+@param local_rules - optional - Relative path to folder containing local rules in yaml or JSON format to be added to the cache.  
+                                Must be provided in conjunction with -lri.
+@param local_rules_id - optional - Custom ID attached to local rules added to the cache used for granular control of local rules 
+                                   when removing and validating from the cache.  Must be given when adding local rules to the cache.
+@param remove_rules -optional - removes all local rules from the cache                                   
 **/
 
 %macro core_update_cache(
   apikey =,
-  cache_path = %sysfunc(sysget(CORE_PATH))/resources/cache
+  cache_path = %sysfunc(sysget(CORE_PATH))/resources/cache,
+  local_rules =, 
+  local_rules_id =, 
+  remove_rules =
   );
 
   %local
@@ -39,7 +46,7 @@
   %******************************************************************************;
 
   data _null_;
-    call core_update_cache("&apikey", "&cache_path");
+    call core_update_cache("&apikey", "&cache_path", "&local_rules", "&local_rules_id", "&remove_rules");
   run;
 
   %exit_macro:
