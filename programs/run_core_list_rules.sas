@@ -18,8 +18,6 @@ filename rules "&project_folder/json/core_rules_sdtmig-3-2-custom.json";
   local_rules_id = CUSTOM123
 );
 
-endsas;
-
 proc sql;
   create table metadata.core_rules
     (

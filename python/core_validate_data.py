@@ -1,5 +1,6 @@
 def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_template, standard, version, 
-                           output, output_format, raw_report, controlled_terminology_package, define_version, data_format, define_xml_path, whodrug, meddra, rules):
+                       output, output_format, raw_report, controlled_terminology_package, define_version, define_xml_path, whodrug, meddra, loinc, medrt,
+                       rules, local_rules, local_rules_cache, local_rules_id):
       """Output: message_return_value"""
 
       import os
@@ -26,23 +27,29 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
       from cdisc_rules_engine.enums.default_file_paths import DefaultFilePaths
       from cdisc_rules_engine.enums.progress_parameter_options import ProgressParameterOptions
       from cdisc_rules_engine.enums.report_types import ReportTypes
+      from cdisc_rules_engine.enums.dataformat_types import DataFormatTypes
       from cdisc_rules_engine.models.validation_args import Validation_args
       from scripts.run_validation import run_validation
       from cdisc_rules_engine.services.cache.cache_populator_service import CachePopulator
       from cdisc_rules_engine.services.cache.cache_service_factory import CacheServiceFactory
       from cdisc_rules_engine.services.cdisc_library_service import CDISCLibraryService
-      from cdisc_rules_engine.utilities.utils import (
-          generate_report_filename,
-          get_rules_cache_key,
-      )
+      from cdisc_rules_engine.utilities.utils import generate_report_filename
       from scripts.list_dataset_metadata_handler import list_dataset_metadata_handler
       from version import __version__
 
-      def valid_data_file(file_name: str, data_format: str):
-          fn = os.path.basename(file_name)
-          return fn.lower() != DEFINE_XML_FILE_NAME and fn.lower().endswith(
-              f".{data_format.lower()}"
-          )
+      def valid_data_file(data_path: list) -> Tuple[list, set]:
+          allowed_formats = [format.value for format in DataFormatTypes]
+          found_formats = set()
+          file_list = []
+          for file in data_path:
+              file_extension = os.path.splitext(file)[1][1:].upper()
+              if file_extension in allowed_formats:
+                  found_formats.add(file_extension)
+                  file_list.append(file)
+          if len(found_formats) > 1:
+              return [], found_formats
+          elif len(found_formats) == 1:
+              return file_list, found_formats
     
       def validate(
           standard: str,
@@ -58,11 +65,15 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
           output: str = generate_report_filename(datetime.now().isoformat()),
           controlled_terminology_package: Tuple[str] = [],
           define_version: str = '',
-          data_format: str = "XPT",
           rules: Tuple[str] = [],
+          local_rules: str = '',
+          local_rules_cache: bool = False,
+          local_rules_id: str = '',
           define_xml_path: str = '',
           whodrug: str ='',
           meddra: str = '',
+          loinc: str = '',
+          medrt: str = '',
           progress: str = 'disabled'
       ):
           """
@@ -102,23 +113,22 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
                   logger.error(
                       "Argument --dataset-path cannot be used together with argument --data"
                   )
-                  validation_message = "Argument --dataset-path cannot be used together with argument --data"
-                  return validation_message
-              dataset_paths: Iterable[str] = [
-                  str(Path(data).joinpath(fn))
-                  for fn in os.listdir(data)
-                  if valid_data_file(fn, data_format)
-              ]
-          elif dataset_path:
-              if data:
+                  return
+              dataset_paths, found_formats = valid_data_file(
+                  [str(Path(data).joinpath(fn)) for fn in os.listdir(data)]
+              )
+              if len(found_formats) > 1:
                   logger.error(
-                      "Argument --dataset-path cannot be used together with argument --data"
+                      f"Argument --data contains more than one allowed file format ({', '.join(found_formats)})."  # noqa: E501
                   )
-                  validation_message = "Argument --dataset-path cannot be used together with argument --data"
-                  return validation_message
-              dataset_paths: Iterable[str] = [
-                  dp for dp in dataset_path if valid_data_file(dp, data_format)
-              ]
+                  return
+          elif dataset_path:
+              dataset_paths, found_formats = valid_data_file([dp for dp in dataset_path])
+              if len(found_formats) > 1:
+                  logger.error(
+                      f"Argument --dataset_path contains more than one allowed file format ({', '.join(found_formats)})."  # noqa: E501
+                  )
+                  return
           else:
               logger.error(
                   "You must pass one of the following arguments: --dataset-path, --data"
@@ -141,10 +151,14 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
                   set(output_format),  # avoiding duplicates
                   raw_report,
                   define_version,
-                  data_format.lower(),
                   whodrug,
                   meddra,
+                  loinc,
+                  medrt,
                   rules,
+                  local_rules,
+                  local_rules_cache,
+                  local_rules_id,
                   progress,
                   define_xml_path,
               )
@@ -166,10 +180,14 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
            raw_report=(raw_report == 1),
            controlled_terminology_package=re.split(';|,', controlled_terminology_package),
            define_version=define_version,
-           data_format=data_format,
            whodrug=whodrug,
            meddra=meddra,
-           rules=re.split(';|,', rules)
+           loinc=loinc,
+           medrt=medrt,
+           rules=re.split(';|,', rules),
+           local_rules=local_rules,
+           local_rules_cache=local_rules_cache,
+           local_rules_id=local_rules_id
        )
        
       return return_message

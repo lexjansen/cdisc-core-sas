@@ -8,7 +8,7 @@
 
 %*  This macro call assumes that you have an environment variable CDISC_LIBRARY_API_KEY. ;
 %*  If not, you can specify the API key in the macro call.                               ;
-%*core_update_cache(
+%core_update_cache(
   /* apikey= <your API key>, */
   cache_path = &project_folder/resources/cache,
   local_rules =, 
