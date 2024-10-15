@@ -32,7 +32,7 @@ options noquotelenmax;
   standard = sdtmig,
   version = 3-3,
   controlled_terminology_package = %str(sdtmct-2023-12-15),
-  output= &project_folder/reports/&report_name._sdtmig_3-3,
+  output= &project_folder/reports/&report_name._sdtmig_3-3_select,
   output_format = %str(XLSX, JSON),
   raw_report = 0,
   define_xml_path = &project_folder/testdata/sdtm/define.xml,
