@@ -22,9 +22,10 @@
   output= &project_folder/reports/&report_name._sdtmig_3-3,
   output_format = %str(XLSX, JSON),
   raw_report = 0,
-  data_format = XPT,
   define_xml_path = &project_folder/testdata/sdtm/define.xml,
   whodrug = &project_folder/testdata/dictionaries/whodrug,
   meddra = &project_folder/testdata/dictionaries/meddra,
+  loinc = &project_folder/testdata/dictionaries/loinc,
+  medrt = &project_folder/testdata/dictionaries/medrt,
   rules =
   );

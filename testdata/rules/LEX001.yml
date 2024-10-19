@@ -1,0 +1,67 @@
+# Variable: TSVAL
+# Condition: TSPARMCD = 'TDIGRP' and record exists where TSPARMCD = 'HLTSUBJI' and TSVAL = 'Y'
+# Rule: TSVAL = null or 'HEALTHY SUBJECTS'
+Authorities:
+  - Organization: CDISC
+    Standards:
+      - Name: SDTMIG
+        References:
+          - Citations:
+              - Cited Guidance:
+                  IG v3.3[7.4.2][Assumption 3][Further information about the
+                  parameters is included Appendix C1, Trial Summary Codes. TSVAL
+                  may have controlled terminology depending on the value of
+                  TSPARMCD. Conditions for including parameters are included in
+                  Appendix C1, Trial Summary Codes.]|IG v3.3[Appendix C1][ If
+                  the study population is healthy subjects (i.e., healthy
+                  subjects flag is Y), this parameter is not expected. If the
+                  healthy subject flag is N, then this parameter would contain
+                  the diagnosis/medical problem of the study population.
+                  [Validation rule; IF healthy volunteers = N then TDIGRP must
+                  be present and not null]
+                Document: IG v3.3
+                Item: IG v3.3[7.4.2][Assumption 3]|IG v3.3[Appendix C1]
+                Section: IG v3.3[7.4.2]|IG v3.3[Appendix C1]
+            Origin: SDTM and SDTMIG Conformance Rules
+            Rule Identifier:
+              Id: CG0272
+              Version: "2"
+            Version: "2.0"
+        Version: "3.3"
+Check:
+  any:
+    - all:
+        - name: AGE
+          operator: greater_than
+          value: 80
+        - name: SEX
+          operator: equal_to
+          value: M
+    - all:
+        - name: AGE
+          operator: greater_than
+          value: 75
+        - name: SEX
+          operator: equal_to
+          value: F
+Core:
+  Id: "LEX-0001"
+  Status: Draft
+  Version: "1"
+Description: In accordance to the Inclusion/Exclusion criteria, Raise an error if
+  the male subject's age is greater than 80 and the female subjexct's age is greater
+  than 75.
+Executability: Fully Executable
+Outcome:
+  Message: AGE greater than 80 and SEX equal to "M" or AGE greater than 75 and
+    SEX is equal to "F".
+Rule Type: Record Data
+Scope:
+  Classes:
+    Include:
+      - SPECIAL PURPOSE
+  Domains:
+    Include:
+      - DM
+Sensitivity: Record
+custom_id: CUSTOM123

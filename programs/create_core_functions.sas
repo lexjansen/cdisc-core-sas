@@ -30,8 +30,8 @@ proc fcmp outlib = macros.core_funcs.python;
   function core_validate_data(
     cache $, pool_size, data $, dataset_path $, log_level $, report_template $,
     standard $, version $, output $, output_format $, raw_report,
-    controlled_terminology_package $, define_version $, data_format $, define_xml_path $,
-    whodrug $, meddra $, rules $) $ 128;
+    controlled_terminology_package $, define_version $, define_xml_path $,
+    whodrug $, meddra $, loinc $, medrt $, rules $, local_rules $, local_rules_cache, local_rules_id) $ 128;
     length message $ 128;
     declare object py(python);
     submit into py("&project_folder/python/core_validate_data.py");
@@ -39,16 +39,16 @@ proc fcmp outlib = macros.core_funcs.python;
     rc = py.call('core_validate_data',
       cache, pool_size, data, dataset_path, log_level, report_template, standard,
       version, output, output_format, raw_report, controlled_terminology_package,
-      define_version, data_format, define_xml_path, whodrug, meddra, rules);
+      define_version, define_xml_path, whodrug, meddra, loinc, medrt, rules, local_rules, local_rules_cache, local_rules_id);
     message = py.results['message_return_value'];
     return(message);
   endfunc;
 
-  subroutine core_update_cache(apikey $, cache_path $);
+  subroutine core_update_cache(apikey $, cache_path $, local_rules $, local_rules_id $, remove_rules $);
     declare object py(python);
     submit into py("&project_folder/python/core_update_cache.py");
     rc = py.publish();
-    rc = py.call('core_update_cache', apikey, cache_path);
+    rc = py.call('core_update_cache', apikey, cache_path, local_rules, local_rules_id, remove_rules);
   endsub;
 
   subroutine core_list_ct(subsets $, output $, cache_path $);
@@ -65,11 +65,11 @@ proc fcmp outlib = macros.core_funcs.python;
     rc = py.call('core_list_dataset_metadata', dataset_path, output);
   endsub;
 
-  subroutine core_list_rules(output $, standard $, version $, cache_path $);
+  subroutine core_list_rules(output $, standard $, version $, cache_path $, local_rules, local_rules_id $);
     declare object py(python);
     submit into py("&project_folder/python/core_list_rules.py");
     rc = py.publish();
-    rc = py.call('core_list_rules', output, standard, version, cache_path);
+    rc = py.call('core_list_rules', output, standard, version, cache_path, local_rules, local_rules_id);
   endsub;
 
   subroutine core_list_rule_sets(output $, cache_path $);

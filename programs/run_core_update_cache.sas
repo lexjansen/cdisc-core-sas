@@ -10,5 +10,24 @@
 %*  If not, you can specify the API key in the macro call.                               ;
 %core_update_cache(
   /* apikey= <your API key>, */
-  cache_path = &project_folder/resources/cache
+  cache_path = &project_folder/resources/cache,
+  local_rules =, 
+  local_rules_id =, 
+  remove_rules =
+  );
+
+%core_update_cache(
+  /* apikey= <your API key>, */
+  cache_path = &project_folder/resources/cache,
+  local_rules =, 
+  local_rules_id = , 
+  remove_rules = CUSTOM123
+  );
+
+%core_update_cache(
+  /* apikey= <your API key>, */
+  cache_path = &project_folder/resources/cache,
+  local_rules = &project_folder/testdata/rules, 
+  local_rules_id = CUSTOM123, 
+  remove_rules =
   );

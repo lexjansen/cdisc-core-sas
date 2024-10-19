@@ -1,7 +1,6 @@
 from copy import deepcopy
 from typing import List, Union
 
-import pandas as pd
 from business_rules import export_rule_data
 from business_rules.engine import run
 import os
@@ -22,6 +21,7 @@ from cdisc_rules_engine.interfaces import (
     DataServiceInterface,
 )
 from cdisc_rules_engine.models.actions import COREActions
+from cdisc_rules_engine.models.dataset.dataset_interface import DatasetInterface
 from cdisc_rules_engine.models.dataset_variable import DatasetVariable
 from cdisc_rules_engine.models.failed_validation_entity import FailedValidationEntity
 from cdisc_rules_engine.models.validation_error_container import (
@@ -55,14 +55,22 @@ class RulesEngine:
         self.standard = kwargs.get("standard")
         self.standard_version = (kwargs.get("standard_version") or "").replace(".", "-")
         self.library_metadata = kwargs.get("library_metadata")
+        self.max_dataset_size = kwargs.get("max_dataset_size")
+        self.dataset_paths = kwargs.get("dataset_paths")
         self.cache = cache or CacheServiceFactory(self.config).get_cache_service()
-        self.data_service = data_service or DataServiceFactory(
+        data_service_factory = DataServiceFactory(
             self.config,
             self.cache,
             self.standard,
             self.standard_version,
             self.library_metadata,
-        ).get_service(**kwargs)
+            self.max_dataset_size,
+        )
+        self.dataset_implementation = data_service_factory.get_dataset_implementation()
+        kwargs["dataset_implementation"] = self.dataset_implementation
+        self.data_service = data_service or data_service_factory.get_data_service(
+            self.dataset_paths
+        )
         self.rule_processor = RuleProcessor(
             self.data_service, self.cache, self.library_metadata
         )
@@ -73,6 +81,8 @@ class RulesEngine:
         self.ct_package = kwargs.get("ct_package")
         self.meddra_path: str = kwargs.get("meddra_path")
         self.whodrug_path: str = kwargs.get("whodrug_path")
+        self.loinc_path: str = kwargs.get("loinc_path")
+        self.medrt_path: str = kwargs.get("medrt_path")
         self.define_xml_path: str = kwargs.get("define_xml_path")
         self.validate_xml: bool = kwargs.get("validate_xml")
 
@@ -164,7 +174,11 @@ class RulesEngine:
                     # No errors were generated, create success error container
                     return [
                         ValidationErrorContainer(
-                            **{"domain": dataset_domain, "errors": []}
+                            **{
+                                "dataset": os.path.basename(dataset_path),
+                                "domain": dataset_domain,
+                                "errors": [],
+                            }
                         ).to_representation()
                     ]
             else:
@@ -204,6 +218,7 @@ class RulesEngine:
             standard=self.standard,
             standard_version=self.standard_version,
             library_metadata=self.library_metadata,
+            dataset_implementation=self.data_service.dataset_implementation,
         )
 
     def validate_rule(
@@ -220,7 +235,6 @@ class RulesEngine:
         kwargs = {}
         builder = self.get_dataset_builder(rule, dataset_path, datasets, domain)
         dataset = builder.get_dataset()
-
         # Update rule for certain rule types
         # SPECIAL CASES FOR RULE TYPES ###############################
         # TODO: Handle these special cases better.
@@ -283,7 +297,7 @@ class RulesEngine:
     def execute_rule(
         self,
         rule: dict,
-        dataset: pd.DataFrame,
+        dataset: DatasetInterface,
         dataset_path: str,
         datasets: List[dict],
         domain: str,
@@ -325,6 +339,8 @@ class RulesEngine:
             standard_version=self.standard_version,
             meddra_path=self.meddra_path,
             whodrug_path=self.whodrug_path,
+            loinc_path=self.loinc_path,
+            medrt_path=self.medrt_path,
             ct_packages=ct_packages,
         )
         relationship_data = {}
@@ -352,6 +368,10 @@ class RulesEngine:
                 value_level_metadata=value_level_metadata,
             ),
         )
+        if results:
+            dataset = os.path.basename(dataset_path)
+            for result in results:
+                result["dataset"] = dataset
         return results
 
     def get_define_xml_metadata_for_domain(
@@ -382,32 +402,42 @@ class RulesEngine:
     ) -> ValidationErrorContainer:
         if isinstance(exception, DatasetNotFoundError):
             error_obj = FailedValidationEntity(
-                error="Dataset Not Found", message=exception.message
+                dataset=os.path.basename(dataset_path),
+                error="Dataset Not Found",
+                message=exception.message,
             )
             message = "rule execution error"
         elif isinstance(exception, RuleFormatError):
             error_obj = FailedValidationEntity(
-                error="Rule format error", message=exception.message
+                dataset=os.path.basename(dataset_path),
+                error="Rule format error",
+                message=exception.message,
             )
             message = "rule execution error"
         elif isinstance(exception, AssertionError):
             error_obj = FailedValidationEntity(
-                error="Rule format error", message="Rule contains invalid operator"
+                dataset=os.path.basename(dataset_path),
+                error="Rule format error",
+                message="Rule contains invalid operator",
             )
             message = "rule execution error"
         elif isinstance(exception, KeyError):
             error_obj = FailedValidationEntity(
-                error="Column not found in data", message=exception.args[0]
+                dataset=os.path.basename(dataset_path),
+                error="Column not found in data",
+                message=exception.args[0],
             )
             message = "rule execution error"
         elif isinstance(exception, DomainNotFoundInDefineXMLError):
             error_obj = FailedValidationEntity(
+                dataset=os.path.basename(dataset_path),
                 error=DomainNotFoundInDefineXMLError.description,
                 message=exception.args[0],
             )
             message = "rule execution error"
         elif isinstance(exception, VariableMetadataNotFoundError):
             error_obj = FailedValidationEntity(
+                dataset=os.path.basename(dataset_path),
                 error=VariableMetadataNotFoundError.description,
                 message=exception.args[0],
             )
@@ -422,23 +452,35 @@ class RulesEngine:
                 message = "Schema Validation Error"
                 errors = [error_obj]
                 return ValidationErrorContainer(
-                    errors=errors, message=message, status=ExecutionStatus.SUCCESS.value
+                    errors=errors,
+                    message=message,
+                    status=ExecutionStatus.SUCCESS.value,
+                    dataset=os.path.basename(dataset_path),
                 )
             else:
                 error_obj: ValidationErrorContainer = ValidationErrorContainer(
-                    status=ExecutionStatus.SKIPPED.value
+                    status=ExecutionStatus.SKIPPED.value,
+                    dataset=os.path.basename(dataset_path),
                 )
                 message = "Skipped because schema validation is off"
                 errors = [error_obj]
                 return ValidationErrorContainer(
-                    errors=errors, message=message, status=ExecutionStatus.SKIPPED.value
+                    dataset=os.path.basename(dataset_path),
+                    errors=errors,
+                    message=message,
+                    status=ExecutionStatus.SKIPPED.value,
                 )
         else:
             error_obj = FailedValidationEntity(
-                error="An unknown exception has occurred", message=str(exception)
+                dataset=os.path.basename(dataset_path),
+                error="An unknown exception has occurred",
+                message=str(exception),
             )
             message = "rule execution error"
         errors = [error_obj]
         return ValidationErrorContainer(
-            errors=errors, message=message, status=ExecutionStatus.EXECUTION_ERROR.value
+            dataset=os.path.basename(dataset_path),
+            errors=errors,
+            message=message,
+            status=ExecutionStatus.EXECUTION_ERROR.value,
         )

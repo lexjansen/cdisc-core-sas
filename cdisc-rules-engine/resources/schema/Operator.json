@@ -303,6 +303,15 @@
     {
       "properties": {
         "operator": {
+          "const": "invalid_duration"
+        }
+      },
+      "required": ["operator", "negative"],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "operator": {
           "const": "invalid_date"
         }
       },
@@ -848,6 +857,15 @@
       },
       "required": ["operator", "metadata", "value"],
       "type": "object"
+    },
+    {
+      "properties": {
+        "operator": {
+          "const": "inconsistent_enumerated_columns"
+        }
+      },
+      "required": ["operator", "name"],
+      "type": "object"
     }
   ],
   "properties": {
@@ -943,6 +961,9 @@
     },
     "within": {
       "$ref": "CORE-base.json#/$defs/VariableName"
+    },
+    "regex": {
+      "type": "string"
     }
   },
   "required": ["operator"],

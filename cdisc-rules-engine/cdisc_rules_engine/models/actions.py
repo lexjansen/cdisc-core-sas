@@ -42,10 +42,7 @@ class COREActions(BaseActions):
     @rule_action(params={"message": FIELD_TEXT})
     def generate_dataset_error_objects(self, message: str, results: pd.Series):
         # leave only those columns where errors have been found
-        self.variable.dataset["results"] = results
-        rows_with_error = self.variable.dataset[
-            self.variable.dataset["results"].isin([True])
-        ]
+        rows_with_error = self.variable.dataset.get_error_rows(results)
         target_names: Set[str] = RuleProcessor.extract_target_names_from_rule(
             self.rule, self.domain, self.variable.dataset.columns.tolist()
         )
@@ -95,7 +92,7 @@ class COREActions(BaseActions):
         df_columns: set = set(data)
         targets_in_dataset = targets.intersection(df_columns)
         targets_not_in_dataset = targets.difference(df_columns)
-        errors_df = data[targets_in_dataset]
+        errors_df = data[list(targets_in_dataset)]
         if not targets:
             errors_df = data
         if errors_df.empty:
@@ -109,8 +106,29 @@ class COREActions(BaseActions):
                     value=dict(errors_df.iloc[0].to_dict()),
                 )
             ]
-        else:
-            # Rule is treated as record level
+        elif self.rule.get("sensitivity") == Sensitivity.RECORD.value:
+            errors_series: pd.Series = errors_df.apply(
+                lambda df_row: self._create_error_object(df_row, data), axis=1
+            )
+            errors_list: List[ValidationErrorEntity] = errors_series.tolist()
+        elif (
+            self.rule.get("sensitivity") is not None
+        ):  # rule sensitivity is incorrectly defined
+            error_entity = ValidationErrorEntity(
+                {
+                    "row": 0,
+                    "value": {"ERROR": "Invalid or undefined sensitivity in the rule"},
+                    "uSubjId": "N/A",
+                    "SEQ": 0,
+                }
+            )
+            return ValidationErrorContainer(
+                domain=self.domain,
+                targets=sorted(targets),
+                message="Invalid or undefined sensitivity in the rule",
+                errors=[error_entity],
+            )
+        else:  # rule sensitivity is undefined
             errors_series: pd.Series = errors_df.apply(
                 lambda df_row: self._create_error_object(df_row, data), axis=1
             )

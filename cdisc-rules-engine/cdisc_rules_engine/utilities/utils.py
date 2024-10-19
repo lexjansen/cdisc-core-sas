@@ -6,8 +6,9 @@ import copy
 import os
 import re
 from datetime import datetime
-from typing import Callable, List, Optional, Set
+from typing import Callable, List, Optional, Set, Union
 from uuid import UUID
+from cdisc_rules_engine.services import logger
 
 from cdisc_rules_engine.constants.domains import (
     AP_DOMAIN,
@@ -19,6 +20,7 @@ from cdisc_rules_engine.constants.classes import SPECIAL_PURPOSE
 from cdisc_rules_engine.enums.execution_status import ExecutionStatus
 from cdisc_rules_engine.interfaces import ConditionInterface
 from cdisc_rules_engine.models.base_validation_entity import BaseValidationEntity
+from business_rules.utils import is_valid_date
 
 
 def convert_file_size(size_in_bytes: int, desired_unit: str) -> float:
@@ -206,7 +208,42 @@ def get_corresponding_datasets(datasets: List[dict], domain: str) -> List[dict]:
 
 
 def is_split_dataset(datasets: List[dict], domain: str) -> bool:
-    return len(get_corresponding_datasets(datasets, domain)) > 1
+    corresponding_datasets = get_corresponding_datasets(datasets, domain)
+    if len(corresponding_datasets) < 2:
+        logger.info(f"Domain {domain} is not a split dataset")
+        return False
+
+    non_supp_datasets = [
+        dataset
+        for dataset in corresponding_datasets
+        if not dataset.get("filename", "").lower().startswith("supp")
+    ]
+
+    if len(non_supp_datasets) < 2:
+        logger.info(f"Domain {domain} does not have at least 2 split datasets")
+        return False
+
+    result = all(
+        (
+            dataset.get("filename", "").split(".")[0].lower().startswith(domain.lower())
+            and len(dataset.get("filename", "").split(".")[0]) >= len(domain)
+        )
+        or dataset.get("filename", "").lower().startswith("supp")
+        for dataset in corresponding_datasets
+    )
+    logger.info(f"{domain} is a split dataset: {result}")
+    return result
+
+
+def is_supp_dataset(datasets: List[dict], domain: str) -> bool:
+    corresponding_datasets = get_corresponding_datasets(datasets, domain)
+    # Check if there are multiple datasets for the domain and if their names match the supp naming convention
+    if len(corresponding_datasets) > 1:
+        return any(
+            dataset.get("filename", "").split(".")[0].lower().startswith("supp")
+            for dataset in corresponding_datasets
+        )
+    return False
 
 
 def serialize_rule(rule: dict) -> dict:
@@ -265,6 +302,13 @@ def generate_report_filename(generation_time: str) -> str:
 
 def get_rules_cache_key(standard: str, version: str, rule_id: str = None) -> str:
     key = f"rules/{standard}/{version}/"
+    if rule_id:
+        key = f"{key}{rule_id}"
+    return key
+
+
+def get_local_cache_key(local_rule_id: str, rule_id: str = None) -> str:
+    key = f"local/{local_rule_id}/"
     if rule_id:
         key = f"{key}{rule_id}"
     return key
@@ -330,3 +374,30 @@ def convert_library_class_name_to_ct_class(class_name: str):
 
 def decode_line(line: bytes) -> str:
     return line.decode("utf-8").replace("\n", "").replace("\r", "")
+
+
+def get_sided_match_keys(match_keys: List[Union[str, dict]], side: str) -> List[str]:
+    return [
+        match_key if isinstance(match_key, str) else match_key[side]
+        for match_key in match_keys
+    ]
+
+
+def parse_date(date_str):
+    if not isinstance(date_str, str) or not is_valid_date(date_str):
+        return 0, 0
+    if "--" in date_str:
+        date_str = date_str.split("--", 1)[0]
+    parts = re.split(r"[-T:]", date_str)
+    precision = len([part for part in parts if part])
+    return date_str, precision
+
+
+def dates_overlap(date1_str, precision1, date2_str, precision2):
+    if precision1 == precision2:
+        return date1_str == date2_str, None
+
+    less_precise = date1_str if precision1 < precision2 else date2_str
+    more_precise = date2_str if precision1 < precision2 else date1_str
+
+    return more_precise.startswith(less_precise), less_precise

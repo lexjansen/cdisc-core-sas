@@ -1,4 +1,4 @@
-%macro get_core_rules(core_standard=, core_standard_version=, dsout=metadata.core_rules, json_folder=&project_folder/json);
+%macro get_core_rules(core_standard=, core_standard_version=, core_local_rules=0, core_local_rules_id=, dsout=metadata.core_rules, json_folder=&project_folder/json);
 
   filename rules "&json_folder/core_rules_&core_standard.-&core_standard_version..json";
 
@@ -6,7 +6,9 @@
     output =  %sysfunc(pathname(rules)),
     standard = &core_standard,
     version = &core_standard_version,
-    cache_path = &project_folder/resources/cache
+    cache_path = &project_folder/resources/cache,
+    local_rules = &core_local_rules,
+    local_rules_id = &core_local_rules_id
     );
 
   filename mapfile temp;

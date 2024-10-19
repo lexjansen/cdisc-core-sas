@@ -6,12 +6,25 @@
 
 %include "&project_folder/programs/config.sas";
 
+
+filename rules "&project_folder/json/core_rules_sdtmig-3-2-custom.json";
+
+%core_list_rules(
+  output =  %sysfunc(pathname(rules)),
+  standard = %str(sdtmig),
+  version = %str(3-2),
+  cache_path = &project_folder/resources/cache,
+  local_rules = 1,
+  local_rules_id = CUSTOM123
+);
+
 proc sql;
   create table metadata.core_rules
     (
      core_standard char(32),
      core_standard_version char(32),
      core_id char(32),
+     custom_id char(32),
      author char(64),
      sensitivity char(32),
      executability char(64),
@@ -46,3 +59,4 @@ run;
 ods excel close;
 ods html5 close;
 ods listing;
+

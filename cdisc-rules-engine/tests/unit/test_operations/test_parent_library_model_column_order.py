@@ -1,5 +1,7 @@
 from typing import List
 from cdisc_rules_engine.config.config import ConfigService
+from cdisc_rules_engine.models.dataset.dask_dataset import DaskDataset
+from cdisc_rules_engine.models.dataset.pandas_dataset import PandasDataset
 from cdisc_rules_engine.models.library_metadata_container import (
     LibraryMetadataContainer,
 )
@@ -21,13 +23,14 @@ from cdisc_rules_engine.operations.parent_library_model_column_order import (
 )
 from cdisc_rules_engine.services.cache import InMemoryCacheService
 from cdisc_rules_engine.services.data_services import LocalDataService
+from cdisc_rules_engine.services.data_readers import DataReaderFactory
 
 
 @pytest.mark.parametrize(
     "data, model_metadata, standard_metadata",
     [
         (
-            pd.DataFrame.from_dict(
+            PandasDataset.from_dict(
                 {
                     "RDOMAIN": ["AE", "AE", "AE", "AE"],
                     "IDVAR": ["AESEQ", "AESEQ", "AESEQ", "AESEQ"],
@@ -116,7 +119,7 @@ def test_get_parent_column_order_from_library(
             "filename": "ae.xpt",
         }
     ]
-    ae = pd.DataFrame.from_dict(
+    ae = PandasDataset.from_dict(
         {
             "AESTDY": [4, 5, 6],
             "STUDYID": [101, 201, 300],
@@ -173,7 +176,7 @@ def test_get_parent_column_order_from_library(
     "data, model_metadata, standard_metadata",
     [
         (
-            pd.DataFrame.from_dict(
+            DaskDataset.from_dict(
                 {
                     "RDOMAIN": ["AE", "AE", "AE", "AE"],
                     "IDVAR": ["AESEQ", "AESEQ", "AESEQ", "AESEQ"],
@@ -283,7 +286,7 @@ def test_get_parent_findings_class_column_order_from_library(
             "filename": "ec.xpt",
         },
     ]
-    ae = pd.DataFrame.from_dict(
+    ae = DaskDataset.from_dict(
         {
             "STUDYID": [
                 "TEST_STUDY",
@@ -299,7 +302,7 @@ def test_get_parent_findings_class_column_order_from_library(
             "AETESTCD": ["test", "test", "test"],
         }
     )
-    ec = pd.DataFrame.from_dict(
+    ec = DaskDataset.from_dict(
         {
             "ECSTDY": [500, 4],
             "STUDYID": [201, 101],
@@ -329,8 +332,13 @@ def test_get_parent_findings_class_column_order_from_library(
             standard_metadata=standard_metadata, model_metadata=model_metadata
         )
         # execute operation
-        data_service = LocalDataService.get_instance(
-            cache_service=cache, config=ConfigService()
+        data_service = LocalDataService(
+            cache_service=cache,
+            config=ConfigService(),
+            reader_factory=DataReaderFactory(),
+            standard="sdtmig",
+            standard_version="3-4",
+            library_metadata=library_metadata,
         )
         operation = ParentLibraryModelColumnOrder(
             operation_params,
