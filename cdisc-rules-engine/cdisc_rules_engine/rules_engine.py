@@ -41,6 +41,9 @@ from cdisc_rules_engine.utilities.utils import (
     serialize_rule,
 )
 from cdisc_rules_engine.dataset_builders import builder_factory
+from cdisc_rules_engine.models.external_dictionaries_container import (
+    ExternalDictionariesContainer,
+)
 
 
 class RulesEngine:
@@ -49,6 +52,7 @@ class RulesEngine:
         cache: CacheServiceInterface = None,
         data_service: DataServiceInterface = None,
         config_obj: ConfigInterface = None,
+        external_dictionaries: ExternalDictionariesContainer = ExternalDictionariesContainer(),
         **kwargs,
     ):
         self.config = config_obj or default_config
@@ -79,10 +83,7 @@ class RulesEngine:
         self.standard_version = kwargs.get("standard_version")
         self.ct_packages = kwargs.get("ct_packages", [])
         self.ct_package = kwargs.get("ct_package")
-        self.meddra_path: str = kwargs.get("meddra_path")
-        self.whodrug_path: str = kwargs.get("whodrug_path")
-        self.loinc_path: str = kwargs.get("loinc_path")
-        self.medrt_path: str = kwargs.get("medrt_path")
+        self.external_dictionaries = external_dictionaries
         self.define_xml_path: str = kwargs.get("define_xml_path")
         self.validate_xml: bool = kwargs.get("validate_xml")
 
@@ -238,6 +239,13 @@ class RulesEngine:
         # Update rule for certain rule types
         # SPECIAL CASES FOR RULE TYPES ###############################
         # TODO: Handle these special cases better.
+        if self.library_metadata:
+            kwargs[
+                "variable_codelist_map"
+            ] = self.library_metadata.variable_codelist_map
+            kwargs[
+                "codelist_term_maps"
+            ] = self.library_metadata.get_all_ct_package_metadata()
         if rule.get("rule_type") == RuleTypes.DEFINE_ITEM_METADATA_CHECK.value:
             if self.library_metadata:
                 kwargs[
@@ -246,10 +254,11 @@ class RulesEngine:
                 kwargs[
                     "codelist_term_maps"
                 ] = self.library_metadata.get_all_ct_package_metadata()
-
         elif (
             rule.get("rule_type")
             == RuleTypes.VARIABLE_METADATA_CHECK_AGAINST_DEFINE.value
+            or rule.get("rule_type")
+            == RuleTypes.VARIABLE_METADATA_CHECK_AGAINST_DEFINE_XML_AND_LIBRARY.value
         ):
             self.rule_processor.add_comparator_to_rule_conditions(
                 rule, comparator=None, target_prefix="define_"
@@ -337,10 +346,7 @@ class RulesEngine:
             dataset_path,
             standard=self.standard,
             standard_version=self.standard_version,
-            meddra_path=self.meddra_path,
-            whodrug_path=self.whodrug_path,
-            loinc_path=self.loinc_path,
-            medrt_path=self.medrt_path,
+            external_dictionaries=self.external_dictionaries,
             ct_packages=ct_packages,
         )
         relationship_data = {}
@@ -397,7 +403,7 @@ class RulesEngine:
         )
         return define_xml_reader.extract_value_level_metadata(domain_name=domain_name)
 
-    def handle_validation_exceptions(
+    def handle_validation_exceptions(  # noqa
         self, exception, dataset_path, file_name
     ) -> ValidationErrorContainer:
         if isinstance(exception, DatasetNotFoundError):
@@ -470,6 +476,30 @@ class RulesEngine:
                     message=message,
                     status=ExecutionStatus.SKIPPED.value,
                 )
+        elif isinstance(exception, KeyError):
+            missing_column = str(exception.args[0]).strip("'")
+            traceback_str = str(exception.__traceback__)
+            is_column_access_error = any(
+                pattern in traceback_str
+                for pattern in [
+                    "NoneType",
+                    "object is None",
+                    "'NoneType'",
+                    "None has no attribute",
+                    "unsupported operand type",
+                    "bad operand type",
+                    "object is not",
+                    "cannot be None",
+                ]
+            )
+            if is_column_access_error:
+                error_obj = FailedValidationEntity(
+                    dataset=os.path.basename(dataset_path),
+                    error="Column Not Present",
+                    message=f"Rule evaluation skipped - '{missing_column}' not found in dataset",
+                    status=ExecutionStatus.SKIPPED.value,
+                )
+                message = "rule evaluation skipped"
         else:
             error_obj = FailedValidationEntity(
                 dataset=os.path.basename(dataset_path),

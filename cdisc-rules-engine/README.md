@@ -97,9 +97,14 @@ Run `python core.py validate --help` to see the list of validation options.
                                   [required]
   -v, --version TEXT              Standard version to validate against
                                   [required]
+  -ss, --substandard TEXT         Substandard to validate against
+                                  [required for TIG]
   -ct, --controlled-terminology-package TEXT
                                   Controlled terminology package to validate
                                   against, can provide more than one
+                                  NOTE: if a defineXML is provided, if it is version 2.1
+                                  engine will use the CT laid out in the define.  If it is
+                                  version 2.0, -ct is expected to specify the CT package
   -o, --output TEXT               Report output file destination and name. Path will be
                                   relative to the validation execution directory
                                   and should end in the desired output filename
@@ -121,6 +126,11 @@ Run `python core.py validate --help` to see the list of validation options.
                                   files
   --medrt TEXT                  Path to directory with MEDRT dictionary
                                   files
+  --unii TEXT                  Path to directory with UNII dictionary
+                                  files
+  --snomed-version TEXT        Version of snomed to use. (ex. 2024-09-01)
+  --snomed-url TEXT            Base url of snomed api to use. (ex. https://snowstorm.snomedtools.org/snowstorm/snomed-ct)
+  --snomed-edition TEXT        Edition of snomed to use. (ex. SNOMEDCT-US)
   -r, --rules TEXT                Specify rule core ID ex. CORE-000001. Can be specified multiple times.
   -lr, --local_rules TEXT         Specify relative path to directory containing
                                   local rule yml and/or json rule files.
@@ -206,10 +216,16 @@ To obtain an api key, please follow the instructions found here: <https://wiki.c
   -ca, --cache TEXT               Relative path to cache files containing pre
                                   loaded metadata and rules
   -dp, --dataset-path TEXT        Absolute path to dataset file
+  -d, --data TEXT                 Path to directory containing data files
+  -l, --log-level [info|debug|error|critical|disabled|warn]
+                                  Sets log level for engine logs, logs are
+                                  disabled by default
   -s, --standard TEXT             CDISC standard to validate against
                                   [required]
   -v, --version TEXT              Standard version to validate against
                                   [required]
+  -ss, --substandard TEXT         Substandard to validate against
+                                  [required for TIG]
   -ct, --controlled-terminology-package TEXT
                                   Controlled terminology package to validate
                                   against, can provide more than one

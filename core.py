@@ -13,6 +13,7 @@ from cdisc_rules_engine.config import config
 from cdisc_rules_engine.enums.default_file_paths import DefaultFilePaths
 from cdisc_rules_engine.enums.progress_parameter_options import ProgressParameterOptions
 from cdisc_rules_engine.enums.report_types import ReportTypes
+from cdisc_rules_engine.enums.dataformat_test_types import TestDataFormatTypes
 from cdisc_rules_engine.enums.dataformat_types import DataFormatTypes
 from cdisc_rules_engine.models.validation_args import Validation_args
 from cdisc_rules_engine.models.test_args import TestArgs
@@ -21,6 +22,10 @@ from scripts.test_rule import test as test_rule
 from cdisc_rules_engine.services.cache.cache_populator_service import CachePopulator
 from cdisc_rules_engine.services.cache.cache_service_factory import CacheServiceFactory
 from cdisc_rules_engine.services.cdisc_library_service import CDISCLibraryService
+from cdisc_rules_engine.models.external_dictionaries_container import (
+    ExternalDictionariesContainer,
+    DictionaryTypes,
+)
 from cdisc_rules_engine.utilities.utils import (
     generate_report_filename,
     get_rules_cache_key,
@@ -30,8 +35,11 @@ from scripts.list_dataset_metadata_handler import list_dataset_metadata_handler
 from version import __version__
 
 
-def valid_data_file(data_path: list) -> Tuple[list, set]:
-    allowed_formats = [format.value for format in DataFormatTypes]
+def valid_data_file(data_path: list, test: bool = False) -> Tuple[list, set]:
+    if test:
+        allowed_formats = [format.value for format in TestDataFormatTypes]
+    else:
+        allowed_formats = [format.value for format in DataFormatTypes]
     found_formats = set()
     file_list = []
     for file in data_path:
@@ -105,6 +113,12 @@ def cli():
     help="Standard version to validate against",
 )
 @click.option(
+    "-ss",
+    "--substandard",
+    default=None,
+    help="CDISC Substandard to validate against",
+)
+@click.option(
     "-ct",
     "--controlled-terminology-package",
     multiple=True,
@@ -148,6 +162,14 @@ def cli():
 @click.option("--meddra", help="Path to directory with MedDRA dictionary files")
 @click.option("--loinc", help="Path to directory with LOINC dictionary files")
 @click.option("--medrt", help="Path to directory with MEDRT dictionary files")
+@click.option("--unii", help="Path to directory with UNII dictionary files")
+@click.option("--snomed-version", help="Version of snomed to use.")
+@click.option(
+    "--snomed-url",
+    help="The Base URL of snomed to use. Defaults to snowstorm test instance",
+    default="https://snowstorm.snomedtools.org/snowstorm/snomed-ct/",
+)
+@click.option("--snomed-edition", help="Edition of snomed to use.")
 @click.option(
     "--rules",
     "-r",
@@ -204,6 +226,7 @@ def validate(
     report_template: str,
     standard: str,
     version: str,
+    substandard: str,
     controlled_terminology_package: Tuple[str],
     output: str,
     output_format: Tuple[str],
@@ -213,6 +236,10 @@ def validate(
     meddra: str,
     loinc: str,
     medrt: str,
+    unii: str,
+    snomed_version: str,
+    snomed_edition: str,
+    snomed_url: str,
     rules: Tuple[str],
     local_rules: str,
     local_rules_cache: bool,
@@ -240,8 +267,21 @@ def validate(
 
     cache_path: str = os.path.join(os.path.dirname(__file__), cache)
 
-    print(os.path.dirname(__file__))
-
+    # Construct ExternalDictionariesContainer:
+    external_dictionaries = ExternalDictionariesContainer(
+        {
+            DictionaryTypes.UNII.value: unii,
+            DictionaryTypes.MEDRT.value: medrt,
+            DictionaryTypes.MEDDRA.value: meddra,
+            DictionaryTypes.WHODRUG.value: whodrug,
+            DictionaryTypes.LOINC.value: loinc,
+            DictionaryTypes.SNOMED.value: {
+                "edition": snomed_edition,
+                "version": snomed_version,
+                "base_url": snomed_url,
+            },
+        }
+    )
     if data:
         if dataset_path:
             logger.error(
@@ -279,15 +319,13 @@ def validate(
             report_template,
             standard,
             version,
+            substandard,
             set(controlled_terminology_package),  # avoiding duplicates
             output,
             set(output_format),  # avoiding duplicates
             raw_report,
             define_version,
-            whodrug,
-            meddra,
-            loinc,
-            medrt,
+            external_dictionaries,
             rules,
             local_rules,
             local_rules_cache,
@@ -454,8 +492,21 @@ def list_rules(
 @click.option(
     "-dp",
     "--dataset-path",
-    required=True,
+    required=False,
     help="Absolute path to dataset file",
+)
+@click.option(
+    "-d",
+    "--data",
+    required=False,
+    help="Path to directory containing data files",
+)
+@click.option(
+    "-l",
+    "--log-level",
+    default="disabled",
+    type=click.Choice(["info", "debug", "error", "critical", "disabled", "warn"]),
+    help="Sets log level for engine logs, logs are disabled by default",
 )
 @click.option(
     "-r",
@@ -468,6 +519,12 @@ def list_rules(
 )
 @click.option(
     "-v", "--version", required=False, help="Standard version to get rules for"
+)
+@click.option(
+    "-ss",
+    "--substandard",
+    default=None,
+    help="CDISC Substandard to validate against",
 )
 @click.option(
     "-ct",
@@ -488,6 +545,14 @@ def list_rules(
 @click.option("--meddra", help="Path to directory with MedDRA dictionary files")
 @click.option("--loinc", help="Path to directory with LOINC dictionary files")
 @click.option("--medrt", help="Path to directory with MEDRT dictionary files")
+@click.option("--unii", help="Path to directory with UNII dictionary files")
+@click.option("--snomed-version", help="Version of snomed to use.")
+@click.option("--snomed-edition", help="Edition of snomed to use.")
+@click.option(
+    "--snomed-url",
+    help="The Base URL of snomed to use. Defaults to snowstorm test instance",
+    default="https://snowstorm.snomedtools.org/snowstorm/snomed-ct/",
+)
 @click.option(
     "-vx",
     "--validate-xml",
@@ -500,29 +565,77 @@ def test(
     ctx,
     cache_path: str,
     dataset_path: Tuple[str],
+    data: str,
+    log_level: str,
     rule: str,
     standard: str,
     version: str,
+    substandard: str,
     controlled_terminology_package: Tuple[str],
     define_version: str,
     whodrug: str,
     meddra: str,
     loinc: str,
     medrt: str,
+    unii: str,
+    snomed_version: str,
+    snomed_edition: str,
+    snomed_url: str,
     validate_xml,
     define_xml_path: str,
 ):
+    logger = logging.getLogger("tester")
+    if data:
+        if dataset_path:
+            logger.error(
+                "Argument --dataset-path cannot be used together with argument --data"
+            )
+            ctx.exit()
+        dataset_paths, found_formats = valid_data_file(
+            [str(Path(data).joinpath(fn)) for fn in os.listdir(data)]
+        )
+        if len(found_formats) > 1:
+            logger.error(
+                f"Argument --data contains more than one allowed file format ({', '.join(found_formats)})."  # noqa: E501
+            )
+            ctx.exit()
+    elif dataset_path:
+        dataset_paths, found_formats = valid_data_file([dataset_path])
+        if len(found_formats) > 1:
+            logger.error(
+                f"Argument --dataset_path contains more than one allowed file format ({', '.join(found_formats)})."  # noqa: E501
+            )
+            ctx.exit()
+    else:
+        logger.error(
+            "You must pass one of the following arguments: --dataset-path, --data"
+        )
+        # no need to define dataset_paths here, the program execution will stop
+        ctx.exit()
+    external_dictionaries = ExternalDictionariesContainer(
+        {
+            DictionaryTypes.MEDDRA.value: meddra,
+            DictionaryTypes.MEDRT.value: medrt,
+            DictionaryTypes.WHODRUG.value: whodrug,
+            DictionaryTypes.LOINC.value: loinc,
+            DictionaryTypes.UNII.value: unii,
+            DictionaryTypes.SNOMED.value: {
+                "edition": snomed_edition,
+                "version": snomed_version,
+                "base_url": snomed_url,
+            },
+        }
+    )
     validate_xml = True if validate_xml.lower() in ("y", "yes") else False
     args = TestArgs(
         cache_path,
-        dataset_path,
+        dataset_paths,
+        log_level,
         rule,
         standard,
         version,
-        whodrug,
-        meddra,
-        loinc,
-        medrt,
+        substandard,
+        external_dictionaries,
         controlled_terminology_package,
         define_version,
         define_xml_path,

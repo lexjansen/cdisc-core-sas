@@ -482,14 +482,14 @@ Date check
 
 ## invalid_duration
 
-Duration ISO-8601 check, returns True if a duration is not in ISO-8601 format. Parameter `negative` must be given to either allow or disallow negative durations as valid.
+Duration ISO-8601 check, returns True if a duration is not in ISO-8601 format. The negative parameter must be specified to indicate if negative durations are either allowed (True) or disallowed (False)
 
-> DURVAR is invalid
+> DURVAR is invalid (negative durations disallowed)
 
 ```yaml
-- name: "BRTHDTC"
+- name: "DURVAR"
   operator: "invalid_duration"
-  negative: "False"
+  negative: False
 ```
 
 # Metadata
@@ -696,6 +696,31 @@ Complement of `contains_all`
     - "Not Assigned"
     - "Not Treated"
     - "Unplanned Treatment"
+```
+
+## is_consistent_across_dataset
+
+Checks if a variable maintains consistent values within groups defined by one or more grouping variables. Groups records by specified value(s) and validates that the target variable maintains the same value within each unique combination of grouping variables
+
+Single grouping variable:
+
+```yaml
+- name: "BGSTRESU"
+  operator: is_consistent_across_dataset
+  value: "USUBJID"
+```
+
+Multiple grouping variables:
+
+```yaml
+- name: "--STRESU"
+  operator: is_consistent_across_dataset
+  value:
+    - "--TESTCD"
+    - "--CAT"
+    - "--SCAT"
+    - "--SPEC"
+    - "--METHOD"
 ```
 
 ## is_unique_set
@@ -923,15 +948,29 @@ Check:
 
 ## shares_at_least_one_element_with
 
-True if at least one of the values in `name` is the same as one of the values in `value`
+Will raise an issue if at least one of the values in `name` is the same as one of the values in `value`
 
 ## shares_exactly_one_element_with
 
-True if exactly one of the values in `name` is the same as one of the values in `value`
+Will raise an issue if exactly one of the values in `name` is the same as one of the values in `value`
 
 ## shares_no_elements_with
 
-True if the values in `name` do not share any of the values in `value`
+Will raise an issue if the values in `name` do not share any of the values in `value`
+
+> Check if $dataset_variables shares no elements with $timing_variables
+
+```yaml
+  "Check": {
+    "all": [
+      {
+        "name": "$dataset_variables",
+        "operator": "shares_no_elements_with",
+        "value": "$timing_variables"
+      }
+    ]
+  },
+```
 
 ## has_same_values
 
@@ -990,11 +1029,3 @@ True if the codelist named within `value` is a valid codelist for the variable n
 ## does_not_reference_correct_codelist
 
 Complement of `references_correct_codelist`
-
-## uses_valid_codelist_terms
-
-True if the value within `value` is a valid term within the codelist named within `name` in the define.xml
-
-## does_not_use_valid_codelist_terms
-
-Complement of `uses_valid_codelist_terms`

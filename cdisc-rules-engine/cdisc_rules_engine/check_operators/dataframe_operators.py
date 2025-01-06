@@ -25,6 +25,47 @@ from cdisc_rules_engine.models.dataset.dask_dataset import DaskDataset
 from cdisc_rules_engine.models.dataset.pandas_dataset import PandasDataset
 from cdisc_rules_engine.models.dataset.dataset_interface import DatasetInterface
 from pandas.api.types import is_integer_dtype
+from cdisc_rules_engine.services import logger
+from functools import wraps
+import traceback
+
+
+def log_operator_execution(func):
+    @wraps(func)
+    def wrapper(self, other_value, *args, **kwargs):
+        try:
+            logger.info(f"Starting check operator: {func.__name__}")
+            result = func(self, other_value)
+            logger.info(f"Completed check operator: {func.__name__}")
+            return result
+        except Exception as e:
+            logger.error(
+                f"Error in {func.__name__}: {str(e)}, "
+                f"traceback: {traceback.format_exc()}"
+            )
+            error_message = str(e)
+            if isinstance(e, TypeError) and (
+                "NoneType" in error_message
+                or "None" in error_message
+                or any(
+                    phrase in error_message
+                    for phrase in [
+                        "NoneType",
+                        "object is None",
+                        "'NoneType'",
+                        "None has no attribute",
+                        "unsupported operand type",
+                        "bad operand type",
+                        "object is not",
+                        "cannot be None",
+                    ]
+                )
+            ):
+                return None
+            else:
+                raise
+
+    return wrapper
 
 
 class DataframeType(BaseType):
@@ -75,11 +116,13 @@ class DataframeType(BaseType):
         else:
             return self.value.get(comparator, comparator)
 
+    @log_operator_execution
     def is_column_of_iterables(self, column):
         return self.value.is_series(column) and (
             isinstance(column.iloc[0], list) or isinstance(column.iloc[0], set)
         )
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def exists(self, other_value):
         target_column = self.replace_prefix(other_value.get("target"))
@@ -94,6 +137,7 @@ class DataframeType(BaseType):
             exists_in_nested = self.value.apply(check_row, axis=1).any()
             return self.value.convert_to_series([exists_in_nested] * len(self.value))
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def not_exists(self, other_value):
         return ~self.exists(other_value)
@@ -160,6 +204,7 @@ class DataframeType(BaseType):
             return target_val != comparison_val
         return row[target] != comparison_data
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def equal_to(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -174,6 +219,7 @@ class DataframeType(BaseType):
             axis=1,
         ).astype(bool)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def equal_to_case_insensitive(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -190,6 +236,7 @@ class DataframeType(BaseType):
             axis=1,
         )
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def not_equal_to_case_insensitive(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -206,6 +253,7 @@ class DataframeType(BaseType):
             axis=1,
         )
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def not_equal_to(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -222,6 +270,7 @@ class DataframeType(BaseType):
             axis=1,
         )
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def suffix_equal_to(self, other_value: dict):
         """
@@ -240,6 +289,7 @@ class DataframeType(BaseType):
             target, comparison_data, "suffix", suffix
         )
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def suffix_not_equal_to(self, other_value: dict):
         """
@@ -247,6 +297,7 @@ class DataframeType(BaseType):
         """
         return ~self.suffix_equal_to(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def prefix_equal_to(self, other_value: dict):
         """
@@ -259,12 +310,16 @@ class DataframeType(BaseType):
             if not value_is_literal
             else other_value.get("comparator")
         )
-        comparison_data = self.get_comparator_data(comparator, value_is_literal)
+        if comparator == "DOMAIN":
+            comparison_data = self.column_prefix_map["--"]
+        else:
+            comparison_data = self.get_comparator_data(comparator, value_is_literal)
         prefix: int = self.replace_prefix(other_value.get("prefix"))
         return self._check_equality_of_string_part(
             target, comparison_data, "prefix", prefix
         )
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def prefix_not_equal_to(self, other_value: dict):
         """
@@ -272,6 +327,7 @@ class DataframeType(BaseType):
         """
         return ~self.prefix_equal_to(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def prefix_is_contained_by(self, other_value: dict):
         """
@@ -291,10 +347,12 @@ class DataframeType(BaseType):
         )
         return self._value_is_contained_by(series_to_validate, comparison_data)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def prefix_is_not_contained_by(self, other_value: dict):
         return ~self.prefix_is_contained_by(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def suffix_is_contained_by(self, other_value: dict):
         """
@@ -314,6 +372,7 @@ class DataframeType(BaseType):
         )
         return self._value_is_contained_by(series_to_validate, comparison_data)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def suffix_is_not_contained_by(self, other_value: dict):
         return ~self.suffix_is_contained_by(other_value)
@@ -371,6 +430,7 @@ class DataframeType(BaseType):
     def _to_numeric(self, target, **kwargs):
         return pd.to_numeric(target, **kwargs)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def less_than(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -387,6 +447,7 @@ class DataframeType(BaseType):
         results = self._where_less_than(target_column, comparison_data)
         return self.value.convert_to_series(results)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def less_than_or_equal_to(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -403,6 +464,7 @@ class DataframeType(BaseType):
         results = self._where_less_than_or_equal_to(target_column, comparison_data)
         return self.value.convert_to_series(results)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def greater_than_or_equal_to(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -419,6 +481,7 @@ class DataframeType(BaseType):
         results = self._where_greater_than_or_equal_to(target_column, comparison_data)
         return self.value.convert_to_series(results)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def greater_than(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -435,6 +498,7 @@ class DataframeType(BaseType):
         results = self._where_greater_than(target_column, comparison_data)
         return self.value.convert_to_series(results)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def contains(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -456,6 +520,7 @@ class DataframeType(BaseType):
             results = np.where(self.value[target] == comparison_data, True, False)
         return self.value.convert_to_series(results)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def does_not_contain(self, other_value):
         return ~self.contains(other_value)
@@ -463,6 +528,7 @@ class DataframeType(BaseType):
     def _series_is_in(self, target, comparison_data):
         return np.where(comparison_data.isin(target), True, False)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def contains_case_insensitive(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -489,10 +555,12 @@ class DataframeType(BaseType):
             )
         return self.value.convert_to_series(results)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def does_not_contain_case_insensitive(self, other_value):
         return ~self.contains_case_insensitive(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def is_contained_by(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -508,10 +576,12 @@ class DataframeType(BaseType):
             results = self.value[target].isin(comparison_data)
         return self.value.convert_to_series(results)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def is_not_contained_by(self, other_value):
         return ~self.is_contained_by(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def is_contained_by_case_insensitive(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -534,10 +604,12 @@ class DataframeType(BaseType):
             results = self.value[target].str.lower().isin(comparison_data)
         return results
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def is_not_contained_by_case_insensitive(self, other_value):
         return ~self.is_contained_by_case_insensitive(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def prefix_matches_regex(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -551,6 +623,7 @@ class DataframeType(BaseType):
         )
         return results
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def not_prefix_matches_regex(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -564,6 +637,7 @@ class DataframeType(BaseType):
         )
         return results
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def suffix_matches_regex(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -577,6 +651,7 @@ class DataframeType(BaseType):
         )
         return results
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def not_suffix_matches_regex(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -590,6 +665,7 @@ class DataframeType(BaseType):
         )
         return results
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def matches_regex(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -602,6 +678,7 @@ class DataframeType(BaseType):
         )
         return results
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def not_matches_regex(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -614,6 +691,7 @@ class DataframeType(BaseType):
         )
         return results
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def equals_string_part(self, other_value):
         """
@@ -637,10 +715,12 @@ class DataframeType(BaseType):
             axis=1,
         )
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def does_not_equal_string_part(self, other_value):
         return ~self.equals_string_part(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def starts_with(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -653,6 +733,7 @@ class DataframeType(BaseType):
         results = self.value[target].str.startswith(comparison_data)
         return results
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def ends_with(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -665,6 +746,7 @@ class DataframeType(BaseType):
         results = self.value[target].str.endswith(comparison_data)
         return results
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def has_equal_length(self, other_value: dict):
         """
@@ -685,10 +767,12 @@ class DataframeType(BaseType):
             results = self.value[target].str.len().eq(comparator)
         return results
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def has_not_equal_length(self, other_value: dict):
         return ~self.has_equal_length(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def longer_than(self, other_value: dict):
         """
@@ -709,6 +793,7 @@ class DataframeType(BaseType):
             results = self.value[target].str.len().gt(comparison_data)
         return results
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def longer_than_or_equal_to(self, other_value: dict):
         target = self.replace_prefix(other_value.get("target"))
@@ -724,20 +809,24 @@ class DataframeType(BaseType):
             results = self.value[target].str.len().ge(comparator)
         return results
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def shorter_than(self, other_value: dict):
         return ~self.longer_than_or_equal_to(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def shorter_than_or_equal_to(self, other_value: dict):
         return ~self.longer_than(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def empty(self, other_value: dict):
         target = self.replace_prefix(other_value.get("target"))
         results = np.where(self.value[target].isin(["", None, {None}]), True, False)
         return self.value.convert_to_series(results)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def empty_within_except_last_row(self, other_value: dict):
         target = self.replace_prefix(other_value.get("target"))
@@ -758,10 +847,12 @@ class DataframeType(BaseType):
         # return values with corresponding indexes from results
         return pd.Series(results.reset_index(level=0, drop=True))
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def non_empty(self, other_value: dict):
         return ~self.empty(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def non_empty_within_except_last_row(self, other_value: dict):
         target = self.replace_prefix(other_value.get("target"))
@@ -783,6 +874,7 @@ class DataframeType(BaseType):
         # return values with corresponding indexes from results
         return pd.Series(results.reset_index(level=0, drop=True))
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def contains_all(self, other_value: dict):
         target = self.replace_prefix(other_value.get("target"))
@@ -797,16 +889,19 @@ class DataframeType(BaseType):
             set(values).issubset(set(self.value[target].unique()))
         )
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def not_contains_all(self, other_value: dict):
         return ~self.contains_all(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def invalid_date(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
         results = ~vectorized_is_valid(self.value[target])
         return self.value.convert_to_series(results)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def invalid_duration(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -831,40 +926,72 @@ class DataframeType(BaseType):
         )
         return self.value.convert_to_series(results)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def date_equal_to(self, other_value):
         return self.date_comparison(other_value, operator.eq)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def date_not_equal_to(self, other_value):
         return self.date_comparison(other_value, operator.ne)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def date_less_than(self, other_value):
         return self.date_comparison(other_value, operator.lt)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def date_less_than_or_equal_to(self, other_value):
         return self.date_comparison(other_value, operator.le)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def date_greater_than_or_equal_to(self, other_value):
         return self.date_comparison(other_value, operator.ge)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def date_greater_than(self, other_value):
         return self.date_comparison(other_value, operator.gt)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def is_incomplete_date(self, other_value):
         return ~self.is_complete_date(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def is_complete_date(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
         results = vectorized_is_complete_date(self.value[target])
         return self.value.convert_to_series(results)
 
+    @log_operator_execution
+    @type_operator(FIELD_DATAFRAME)
+    def is_consistent_across_dataset(self, other_value):
+        target = self.replace_prefix(other_value.get("target"))
+        comparator = other_value.get("comparator")
+        grouping_cols = []
+        if isinstance(comparator, str):
+            col_name = self.replace_prefix(comparator)
+            if col_name in self.value.columns:
+                grouping_cols.append(col_name)
+        else:
+            for col in comparator:
+                col_name = self.replace_prefix(col)
+                if col_name in self.value.columns:
+                    grouping_cols.append(col_name)
+        df_check = self.value[grouping_cols + [target]].copy()
+        df_check = df_check.fillna("_NaN_")
+        results = pd.Series(True, index=df_check.index)
+        for name, group in df_check.groupby(grouping_cols):
+            if group[target].nunique() == 1:
+                results[group.index] = False
+        return results
+
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def is_unique_set(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -877,12 +1004,19 @@ class DataframeType(BaseType):
             if target_name in self.value.columns:
                 target_names.append(target_name)
         target_names = list(set(target_names))
-        counts = (
-            self.value[target_names].groupby(target_names)[target].transform("size")
-        )
+        df_group = self.value[target_names].copy()
+        df_group = df_group.fillna("_NaN_")
+        group_sizes = df_group.groupby(target_names).size()
+        counts = df_group.apply(tuple, axis=1).map(group_sizes)
         results = np.where(counts <= 1, True, False)
         return self.value.convert_to_series(results)
 
+    @log_operator_execution
+    @type_operator(FIELD_DATAFRAME)
+    def is_not_unique_set(self, other_value):
+        return ~self.is_unique_set(other_value)
+
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def is_not_unique_relationship(self, other_value):
         """
@@ -934,14 +1068,12 @@ class DataframeType(BaseType):
             result += self.value[target].isin(duplicated_target_values)
         return result
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def is_unique_relationship(self, other_value):
         return ~self.is_not_unique_relationship(other_value)
 
-    @type_operator(FIELD_DATAFRAME)
-    def is_not_unique_set(self, other_value):
-        return ~self.is_unique_set(other_value)
-
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def is_ordered_set(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -950,10 +1082,12 @@ class DataframeType(BaseType):
             raise Exception("Comparator must be a single String value")
         return self.value.is_column_sorted_within(value, target)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def is_not_ordered_set(self, other_value):
         return not self.is_ordered_set(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def is_valid_reference(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -967,10 +1101,12 @@ class DataframeType(BaseType):
             results = self.value[target].isin(self.relationship_data)
         return results
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def is_not_valid_reference(self, other_value):
         return ~self.is_valid_reference(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def is_valid_relationship(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
@@ -982,10 +1118,12 @@ class DataframeType(BaseType):
         )
         return results
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def is_not_valid_relationship(self, other_value):
         return ~self.is_valid_relationship(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def non_conformant_value_data_type(self, other_value):
         results = False
@@ -995,6 +1133,7 @@ class DataframeType(BaseType):
             )
         return self.value.convert_to_series(results.values)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def non_conformant_value_length(self, other_value):
         results = False
@@ -1004,6 +1143,7 @@ class DataframeType(BaseType):
             )
         return self.value.convert_to_series(results)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def conformant_value_data_type(self, other_value):
         results = False
@@ -1013,6 +1153,7 @@ class DataframeType(BaseType):
             )
         return self.value.convert_to_series(results)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def conformant_value_length(self, other_value):
         results = False
@@ -1022,6 +1163,7 @@ class DataframeType(BaseType):
             )
         return self.value.convert_to_series(results)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def has_next_corresponding_record(self, other_value: dict):
         """
@@ -1045,6 +1187,7 @@ class DataframeType(BaseType):
         )
         return self.value.convert_to_series(results.explode().tolist())
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def does_not_have_next_corresponding_record(self, other_value: dict):
         return ~self.has_next_corresponding_record(other_value)
@@ -1074,6 +1217,7 @@ class DataframeType(BaseType):
             ]
         ).tolist()
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def present_on_multiple_rows_within(self, other_value: dict):
         """
@@ -1097,6 +1241,7 @@ class DataframeType(BaseType):
     ):
         return len(data) > min_length
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def not_present_on_multiple_rows_within(self, other_value: dict):
         return ~self.present_on_multiple_rows_within(other_value)
@@ -1117,6 +1262,7 @@ class DataframeType(BaseType):
             or (value in target_data.astype(str))
         )
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def inconsistent_enumerated_columns(self, other_value: dict):
         """
@@ -1152,6 +1298,7 @@ class DataframeType(BaseType):
 
         return df.apply(check_inconsistency, axis=1)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def references_correct_codelist(self, other_value: dict):
         target: str = self.replace_prefix(other_value.get("target"))
@@ -1165,19 +1312,6 @@ class DataframeType(BaseType):
     @type_operator(FIELD_DATAFRAME)
     def does_not_reference_correct_codelist(self, other_value: dict):
         return ~self.references_correct_codelist(other_value)
-
-    @type_operator(FIELD_DATAFRAME)
-    def uses_valid_codelist_terms(self, other_value: dict):
-        target: str = self.replace_prefix(other_value.get("target"))
-        comparator = self.replace_prefix(other_value.get("comparator"))
-        result = self.value.apply(
-            lambda row: self.valid_terms(row[target], row[comparator]), axis=1
-        )
-        return result
-
-    @type_operator(FIELD_DATAFRAME)
-    def does_not_use_valid_codelist_terms(self, other_value: dict):
-        return ~self.uses_valid_codelist_terms(other_value)
 
     def next_column_exists_and_previous_is_null(self, row) -> bool:
         row.reset_index(drop=True, inplace=True)
@@ -1205,20 +1339,7 @@ class DataframeType(BaseType):
                         )
         return True
 
-    def valid_terms(self, codelist, terms_list):
-        if not codelist:
-            return True
-        valid_term = False
-        for codelist_term_map in self.codelist_term_maps:
-            if codelist in codelist_term_map:
-                valid_term = valid_term or (
-                    codelist_term_map[codelist].get("extensible")
-                    or set(terms_list).issubset(
-                        codelist_term_map[codelist].get("allowed_terms", [])
-                    )
-                )
-        return valid_term
-
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def has_different_values(self, other_value: dict):
         """
@@ -1228,10 +1349,12 @@ class DataframeType(BaseType):
         is_valid: bool = len(self.value[target].unique()) > 1
         return self.value.convert_to_series([is_valid] * len(self.value[target]))
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def has_same_values(self, other_value: dict):
         return ~self.has_different_values(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def is_ordered_by(self, other_value: dict):
         """
@@ -1246,10 +1369,12 @@ class DataframeType(BaseType):
             self.value[target].sort_values(ascending=sort_order_bool, ignore_index=True)
         )
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def is_not_ordered_by(self, other_value: dict):
         return ~self.is_ordered_by(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def value_has_multiple_references(self, other_value: dict):
         """
@@ -1268,6 +1393,7 @@ class DataframeType(BaseType):
         )
         return self.value.convert_to_series(result)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def value_does_not_have_multiple_references(self, other_value: dict):
         return ~self.value_has_multiple_references(other_value)
@@ -1315,6 +1441,7 @@ class DataframeType(BaseType):
 
         return is_sorted
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def target_is_sorted_by(self, other_value: dict):
         """
@@ -1361,10 +1488,12 @@ class DataframeType(BaseType):
                 result = result.squeeze()
         return result
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def target_is_not_sorted_by(self, other_value: dict):
         return ~self.target_is_sorted_by(other_value)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def variable_metadata_equal_to(self, other_value: dict):
         """
@@ -1389,6 +1518,70 @@ class DataframeType(BaseType):
         )
         return self.value.convert_to_series(result)
 
+    @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def variable_metadata_not_equal_to(self, other_value: dict):
         return ~self.variable_metadata_equal_to(other_value)
+
+    @log_operator_execution
+    @type_operator(FIELD_DATAFRAME)
+    def shares_at_least_one_element_with(self, other_value: dict):
+        target: str = self.replace_prefix(other_value.get("target"))
+        comparator: str = self.replace_prefix(other_value.get("comparator"))
+
+        def check_shared_elements(row):
+            target_set = (
+                set(row[target])
+                if isinstance(row[target], (list, set))
+                else {row[target]}
+            )
+            comparator_set = (
+                set(row[comparator])
+                if isinstance(row[comparator], (list, set))
+                else {row[comparator]}
+            )
+            return bool(target_set.intersection(comparator_set))
+
+        return self.value.apply(check_shared_elements, axis=1).any()
+
+    @log_operator_execution
+    @type_operator(FIELD_DATAFRAME)
+    def shares_exactly_one_element_with(self, other_value: dict):
+        target: str = self.replace_prefix(other_value.get("target"))
+        comparator: str = self.replace_prefix(other_value.get("comparator"))
+
+        def check_exactly_one_shared_element(row):
+            target_set = (
+                set(row[target])
+                if isinstance(row[target], (list, set))
+                else {row[target]}
+            )
+            comparator_set = (
+                set(row[comparator])
+                if isinstance(row[comparator], (list, set))
+                else {row[comparator]}
+            )
+            return len(target_set.intersection(comparator_set)) == 1
+
+        return self.value.apply(check_exactly_one_shared_element, axis=1).any()
+
+    @log_operator_execution
+    @type_operator(FIELD_DATAFRAME)
+    def shares_no_elements_with(self, other_value: dict):
+        target: str = self.replace_prefix(other_value.get("target"))
+        comparator: str = self.replace_prefix(other_value.get("comparator"))
+
+        def check_no_shared_elements(row):
+            target_set = (
+                set(row[target])
+                if isinstance(row[target], (list, set))
+                else {row[target]}
+            )
+            comparator_set = (
+                set(row[comparator])
+                if isinstance(row[comparator], (list, set))
+                else {row[comparator]}
+            )
+            return len(target_set.intersection(comparator_set)) == 0
+
+        return self.value.apply(check_no_shared_elements, axis=1).all()

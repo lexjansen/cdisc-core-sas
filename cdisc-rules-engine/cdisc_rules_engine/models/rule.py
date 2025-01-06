@@ -74,7 +74,11 @@ class Rule:
         for authority in authorities:
             for standard in authority.get("Standards", []):
                 standards.append(
-                    {"Name": standard.get("Name"), "Version": standard.get("Version")}
+                    {
+                        "Name": standard.get("Name"),
+                        "Version": standard.get("Version"),
+                        "Substandard": standard.get("Substandard"),
+                    }
                 )
         return standards
 
@@ -139,7 +143,7 @@ class Rule:
         if "variables" in condition:
             data["variables"] = condition["variables"]
         if "negative" in condition:
-            data["value"]["negative"] = condition.get("negative").lower() == "true"
+            data["value"]["negative"] = condition.get("negative")
         for optional_parameter in OptionalConditionParameters.values():
             if optional_parameter in condition:
                 data["value"][optional_parameter] = condition.get(optional_parameter)

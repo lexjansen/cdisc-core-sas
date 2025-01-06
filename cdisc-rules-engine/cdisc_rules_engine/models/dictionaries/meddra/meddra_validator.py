@@ -18,6 +18,7 @@ class MedDRAValidator(BaseDictionaryValidator):
         self,
         data_service: DataServiceInterface = None,
         cache_service: CacheServiceInterface = None,
+        dictionary_path: str = None,
         **kwargs,
     ):
         self.code_variables = set(
@@ -33,7 +34,7 @@ class MedDRAValidator(BaseDictionaryValidator):
         )
         self.cache_service = cache_service
         self.data_service = data_service
-        self.path = kwargs.get("meddra_path")
+        self.path = dictionary_path or kwargs.get("meddra_path")
         self.term_dictionary = kwargs.get("terms")
         self.terms_factory = MedDRATermsFactory(self.data_service)
 
@@ -88,7 +89,9 @@ class MedDRAValidator(BaseDictionaryValidator):
 
         return len(valid_terms) > 0
 
-    def is_valid_code(self, code: str, term_type: str, variable: str, **kwargs) -> bool:
+    def is_valid_code(
+        self, code: str, term_type: str, variable: str, codes=[], **kwargs
+    ) -> bool:
         """
         Method to identify whether a term is valid based on its term type.
 
