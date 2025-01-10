@@ -27,5 +27,8 @@
   meddra = &project_folder/testdata/dictionaries/meddra,
   loinc = &project_folder/testdata/dictionaries/loinc,
   medrt = &project_folder/testdata/dictionaries/medrt,
+  unii = &project_folder/testdata/dictionaries/unii,
+  snomed_edition = %str(SNOMEDCT-US),
+  snomed_version = %str(2024-09-01),
   rules =
   );

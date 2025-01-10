@@ -799,6 +799,7 @@ if __name__ == "__main__":
         meddra='./testdata/dictionaries/meddra',
         loinc='./testdata/dictionaries/loinc',
         medrt='./testdata/dictionaries/medrt',
+        unii='./testdata/dictionaries/unii'
         # progress='disabled',
     )
 
@@ -819,7 +820,10 @@ if __name__ == "__main__":
         rules = [],
         define_xml_path='./testdata/sdtm/define.xml',
         whodrug='./testdata/dictionaries/whodrug',
-        meddra='./testdata/dictionaries/meddra'
+        meddra='./testdata/dictionaries/meddra',
+        loinc='./testdata/dictionaries/loinc',
+        medrt='./testdata/dictionaries/medrt',
+        unii='./testdata/dictionaries/unii'
         # progress='disabled',
     )
 
@@ -843,6 +847,9 @@ if __name__ == "__main__":
         local_rules_id = '',
         define_xml_path='./testdata/sdtm/define.xml',
         whodrug='./testdata/dictionaries/whodrug',
-        meddra='./testdata/dictionaries/meddra'
+        meddra='./testdata/dictionaries/meddra',
+        loinc='./testdata/dictionaries/loinc',
+        medrt='./testdata/dictionaries/medrt',
+        unii='./testdata/dictionaries/unii'
         # progress='disabled',
     )

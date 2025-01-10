@@ -1,5 +1,6 @@
-def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_template, standard, version, 
-                       output, output_format, raw_report, controlled_terminology_package, define_version, define_xml_path, whodrug, meddra, loinc, medrt,
+def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_template, standard, version, substandard,
+                       output, output_format, raw_report, controlled_terminology_package, define_version, define_xml_path,
+                       whodrug, meddra, loinc, medrt, unii, snomed_version, snomed_edition, snomed_url,
                        rules, local_rules, local_rules_cache, local_rules_id):
       """Output: message_return_value"""
 
@@ -27,18 +28,26 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
       from cdisc_rules_engine.enums.default_file_paths import DefaultFilePaths
       from cdisc_rules_engine.enums.progress_parameter_options import ProgressParameterOptions
       from cdisc_rules_engine.enums.report_types import ReportTypes
+      from cdisc_rules_engine.enums.dataformat_test_types import TestDataFormatTypes
       from cdisc_rules_engine.enums.dataformat_types import DataFormatTypes
       from cdisc_rules_engine.models.validation_args import Validation_args
       from scripts.run_validation import run_validation
       from cdisc_rules_engine.services.cache.cache_populator_service import CachePopulator
       from cdisc_rules_engine.services.cache.cache_service_factory import CacheServiceFactory
       from cdisc_rules_engine.services.cdisc_library_service import CDISCLibraryService
+      from cdisc_rules_engine.models.external_dictionaries_container import (
+          ExternalDictionariesContainer,
+          DictionaryTypes,
+      )
       from cdisc_rules_engine.utilities.utils import generate_report_filename
       from scripts.list_dataset_metadata_handler import list_dataset_metadata_handler
       from version import __version__
 
-      def valid_data_file(data_path: list) -> Tuple[list, set]:
-          allowed_formats = [format.value for format in DataFormatTypes]
+      def valid_data_file(data_path: list, test: bool = False) -> Tuple[list, set]:
+          if test:
+              allowed_formats = [format.value for format in TestDataFormatTypes]
+          else:
+              allowed_formats = [format.value for format in DataFormatTypes]
           found_formats = set()
           file_list = []
           for file in data_path:
@@ -50,10 +59,11 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
               return [], found_formats
           elif len(found_formats) == 1:
               return file_list, found_formats
-    
+
       def validate(
           standard: str,
           version: str,
+          substandard: str = '',
           cache: str = core_path + "/" + DefaultFilePaths.CACHE.value,
           pool_size: int =10,
           log_level: str = 'disabled',
@@ -74,6 +84,10 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
           meddra: str = '',
           loinc: str = '',
           medrt: str = '',
+          unii: str =  '',
+          snomed_version: str = '',
+          snomed_edition: str = '',
+          snomed_url: str = 'https://snowstorm.snomedtools.org/snowstorm/snomed-ct/',
           progress: str = 'disabled'
       ):
           """
@@ -85,7 +99,7 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
           """
 
           validation_message = ""
-          
+
           dataset_path = [item.strip(' ') for item in dataset_path if item !='']
           output_format = [item.strip(' ') for item in output_format if item !='']
           controlled_terminology_package = [item.strip(' ') for item in controlled_terminology_package if item !='']
@@ -107,6 +121,24 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
                   return validation_message
 
           cache_path: str = os.path.join(os.path.dirname(__file__), cache)
+
+          # Construct ExternalDictionariesContainer:
+          external_dictionaries = ExternalDictionariesContainer(
+              {
+                    DictionaryTypes.UNII.value: unii,
+                    DictionaryTypes.MEDRT.value: medrt,
+                    DictionaryTypes.MEDDRA.value: meddra,
+                    DictionaryTypes.WHODRUG.value: whodrug,
+                    DictionaryTypes.LOINC.value: loinc,
+                    DictionaryTypes.SNOMED.value: {
+                        "edition": snomed_edition,
+                        "version": snomed_version,
+                        "base_url": snomed_url,
+                    },
+                }
+          )
+
+
 
           if data:
               if dataset_path:
@@ -146,15 +178,13 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
                   report_template,
                   standard,
                   version,
+                  substandard,
                   set(controlled_terminology_package),  # avoiding duplicates
                   output,
                   set(output_format),  # avoiding duplicates
                   raw_report,
                   define_version,
-                  whodrug,
-                  meddra,
-                  loinc,
-                  medrt,
+                  external_dictionaries,
                   rules,
                   local_rules,
                   local_rules_cache,
@@ -163,7 +193,7 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
                   define_xml_path,
               )
           )
-          
+
           return validation_message
 
       return_message = validate(
@@ -189,5 +219,5 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
            local_rules_cache=local_rules_cache,
            local_rules_id=local_rules_id
        )
-       
+
       return return_message
