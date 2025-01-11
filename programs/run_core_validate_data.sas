@@ -18,17 +18,20 @@
   */
   standard = sdtmig,
   version = 3-3,
+  /*
   controlled_terminology_package = %str(sdtmct-2023-12-15),
+  */
   output= &project_folder/reports/&report_name._sdtmig_3-3,
   output_format = %str(XLSX, JSON),
   raw_report = 0,
+  define_version=2.1.0,
   define_xml_path = &project_folder/testdata/sdtm/define.xml,
   whodrug = &project_folder/testdata/dictionaries/whodrug,
   meddra = &project_folder/testdata/dictionaries/meddra,
   loinc = &project_folder/testdata/dictionaries/loinc,
   medrt = &project_folder/testdata/dictionaries/medrt,
   unii = &project_folder/testdata/dictionaries/unii,
-  snomed_edition = %str(SNOMEDCT-US),
-  snomed_version = %str(2024-09-01),
+  snomed_version = 2024-09-01,
+  snomed_edition = SNOMEDCT-US,
   rules =
   );

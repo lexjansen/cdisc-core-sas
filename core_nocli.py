@@ -781,6 +781,7 @@ if __name__ == "__main__":
 
     validate(
         standard='sdtmig',
+        substandard='custom',
         version='3-3',
         cache='./resources/cache',
         # pool_size=10,
@@ -790,8 +791,8 @@ if __name__ == "__main__":
         report_template='./resources/templates/report-template.xlsx',
         output_format=['JSON', 'XLSX'],
         raw_report=False,
-        output='./reports/' + generate_report_filename(datetime.now().isoformat()),
-        # controlled_terminology_package=['sdtmct-2023-12-15'],
+        output='./reports/' + generate_report_filename(datetime.now().isoformat()) + '_python',
+        controlled_terminology_package=['sdtmct-2023-12-15'],
         define_version='2.1.0',
         rules = ["CORE-000006", "CORE-000007", "CORE-000012", "CORE-000013", "CORE-000019", "CORE-000266", "CORE-000356"],
         define_xml_path='./testdata/sdtm/define.xml',
@@ -799,7 +800,10 @@ if __name__ == "__main__":
         meddra='./testdata/dictionaries/meddra',
         loinc='./testdata/dictionaries/loinc',
         medrt='./testdata/dictionaries/medrt',
-        unii='./testdata/dictionaries/unii'
+        unii='./testdata/dictionaries/unii',
+        snomed_url = 'https://snowstorm.snomedtools.org/snowstorm/snomed-ct/',
+        snomed_edition = 'SNOMEDCT-US',
+        snomed_version = '2024-09-01'
         # progress='disabled',
     )
 
@@ -814,7 +818,7 @@ if __name__ == "__main__":
         report_template='./resources/templates/report-template.xlsx',
         output_format=['JSON', 'XLSX'],
         raw_report=False,
-        output='./reports/' + generate_report_filename(datetime.now().isoformat()) + '_all',
+        output='./reports/' + generate_report_filename(datetime.now().isoformat()) + '_python_all',
         # controlled_terminology_package=['sdtmct-2023-12-15'],
         define_version='2.1.0',
         rules = [],
@@ -823,7 +827,10 @@ if __name__ == "__main__":
         meddra='./testdata/dictionaries/meddra',
         loinc='./testdata/dictionaries/loinc',
         medrt='./testdata/dictionaries/medrt',
-        unii='./testdata/dictionaries/unii'
+        unii='./testdata/dictionaries/unii',
+        snomed_url = 'https://snowstorm.snomedtools.org/snowstorm/snomed-ct/',
+        snomed_edition = 'SNOMEDCT-US',
+        snomed_version = '2024-09-01'
         # progress='disabled',
     )
 
@@ -838,7 +845,7 @@ if __name__ == "__main__":
         report_template='./resources/templates/report-template.xlsx',
         output_format=['JSON', 'XLSX'],
         raw_report=False,
-        output='./reports/' + generate_report_filename(datetime.now().isoformat()) + '_local',
+        output='./reports/' + generate_report_filename(datetime.now().isoformat()) + '_python_local',
         # controlled_terminology_package=['sdtmct-2023-12-15'],
         define_version='2.1.0',
         rules = [],
@@ -850,6 +857,9 @@ if __name__ == "__main__":
         meddra='./testdata/dictionaries/meddra',
         loinc='./testdata/dictionaries/loinc',
         medrt='./testdata/dictionaries/medrt',
-        unii='./testdata/dictionaries/unii'
+        unii='./testdata/dictionaries/unii',
+        snomed_url = 'https://snowstorm.snomedtools.org/snowstorm/snomed-ct/',
+        snomed_edition = 'SNOMEDCT-US',
+        snomed_version = '2024-09-01'
         # progress='disabled',
     )

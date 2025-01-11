@@ -23,8 +23,8 @@
 @param medrt - optional - Path to directory with MEDRT dictionary files
 @param unii - optional - Path to directory with UNII dictionary files
 @param snomed_version - optional - Version of snomed to use
-@param snomed_url - optional - The Base URL of snomed to use. Defaults to snowstorm test instance
 @param snomed_edition - optional - Edition of snomed to use
+@param snomed_url - optional - The Base URL of snomed to use. Defaults to snowstorm test instance
 @param rules - optional - Rule core id. ex: CORE-000001. Can be specified multiple times.
 @param local_rules - optional - path to directory containing local rules
 @param local_rules_cache - optional - flag to run a validation using the local rules in the cache (0/1).
@@ -56,8 +56,8 @@
   medrt =,
   unii =,
   snomed_version =,
-  snomed_url = %str(https://snowstorm.snomedtools.org/snowstorm/snomed-ct/),
   snomed_edition =,
+  snomed_url = %str(https://snowstorm.snomedtools.org/snowstorm/snomed-ct/),
   rules =,
   local_rules =,
   local_rules_cache = 0,
@@ -129,7 +129,7 @@
   %end;
 
   %* Check directories;
-  %let _Directories = cache_path data whodrug meddra;
+  %let _Directories = cache_path data whodrug meddra loinc medrt unii;
   %do i = 1 %to %sysfunc(countw(&_Directories));
     %let _Directory = %scan(&_Directories, &i);
     %if %sysevalf(%superq(&_Directory)=, boolean) = 0 %then %do;
@@ -182,7 +182,7 @@
   %end;
 
   data _null_;
-    message = core_validate_data("&cache_path", &pool_size, "&data", "&dataset_path", "&log_level", "&report_template", "&standard", "&version", "&substandard", "&output",  "&output_format",  &raw_report, "&controlled_terminology_package" , "&define_version", "&define_xml_path", "&whodrug", "&meddra", "&loinc", "&medrt", "&unii", "&snomed_version", "&snomed_url", "&snomed_edition", "&rules", "&local_rules", &local_rules_cache, "&local_rules_id");
+    message = core_validate_data("&cache_path", &pool_size, "&data", "&dataset_path", "&log_level", "&report_template", "&standard", "&version", "&substandard", "&output",  "&output_format",  &raw_report, "&controlled_terminology_package" , "&define_version", "&define_xml_path", "&whodrug", "&meddra", "&loinc", "&medrt", "&unii", "&snomed_version", "&snomed_edition", "&snomed_url", "&rules", "&local_rules", &local_rules_cache, "&local_rules_id");
     if not missing(message) then putlog "ERR" "OR: " message;
   run;
 
