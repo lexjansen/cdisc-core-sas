@@ -799,7 +799,9 @@ if __name__ == "__main__":
         meddra='./testdata/dictionaries/meddra',
         loinc='./testdata/dictionaries/loinc',
         medrt='./testdata/dictionaries/medrt',
-        unii='./testdata/dictionaries/unii'
+        unii='./testdata/dictionaries/unii',
+        snomed_version='2024-09-01',
+        snomed_edition = 'SNOMEDCT-US'
         # progress='disabled',
     )
 
@@ -823,7 +825,9 @@ if __name__ == "__main__":
         meddra='./testdata/dictionaries/meddra',
         loinc='./testdata/dictionaries/loinc',
         medrt='./testdata/dictionaries/medrt',
-        unii='./testdata/dictionaries/unii'
+        unii='./testdata/dictionaries/unii',
+        snomed_version='2024-09-01',
+        snomed_edition = 'SNOMEDCT-US'
         # progress='disabled',
     )
 
@@ -850,6 +854,8 @@ if __name__ == "__main__":
         meddra='./testdata/dictionaries/meddra',
         loinc='./testdata/dictionaries/loinc',
         medrt='./testdata/dictionaries/medrt',
-        unii='./testdata/dictionaries/unii'
+        unii='./testdata/dictionaries/unii',
+        snomed_version='2024-09-01',
+        snomed_edition = 'SNOMEDCT-US'
         # progress='disabled',
     )

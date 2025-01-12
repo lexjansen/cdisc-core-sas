@@ -29,7 +29,7 @@ proc fcmp outlib = macros.core_funcs.python;
 
   function core_validate_data(
     cache $, pool_size, data $, dataset_path $, log_level $, report_template $,
-    standard $, version $, $substandard, output $, output_format $, raw_report,
+    standard $, version $, substandard $, output $, output_format $, raw_report,
     controlled_terminology_package $, define_version $, define_xml_path $,
     whodrug $, meddra $, loinc $, medrt $, unii $, snomed_version $, snomed_edition $, snomed_url $,
     rules $, local_rules $, local_rules_cache, local_rules_id) $ 128;
