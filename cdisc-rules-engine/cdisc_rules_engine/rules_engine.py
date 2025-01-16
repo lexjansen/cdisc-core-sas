@@ -14,6 +14,7 @@ from cdisc_rules_engine.exceptions.custom_exceptions import (
     RuleFormatError,
     VariableMetadataNotFoundError,
     FailedSchemaValidation,
+    DomainNotFoundError,
 )
 from cdisc_rules_engine.interfaces import (
     CacheServiceInterface,
@@ -44,6 +45,7 @@ from cdisc_rules_engine.dataset_builders import builder_factory
 from cdisc_rules_engine.models.external_dictionaries_container import (
     ExternalDictionariesContainer,
 )
+import traceback
 
 
 class RulesEngine:
@@ -58,6 +60,7 @@ class RulesEngine:
         self.config = config_obj or default_config
         self.standard = kwargs.get("standard")
         self.standard_version = (kwargs.get("standard_version") or "").replace(".", "-")
+        self.standard_substandard = kwargs.get("standard_substandard") or None
         self.library_metadata = kwargs.get("library_metadata")
         self.max_dataset_size = kwargs.get("max_dataset_size")
         self.dataset_paths = kwargs.get("dataset_paths")
@@ -102,6 +105,7 @@ class RulesEngine:
             InMemoryCacheService.get_instance(),
             self.standard,
             self.standard_version,
+            self.standard_substandard,
             self.library_metadata,
         ).get_dummy_data_service(datasets)
         dataset_dicts = []
@@ -193,7 +197,12 @@ class RulesEngine:
             logger.trace(e, __name__)
             logger.error(
                 f"""Error occurred during validation.
-                Error: {e}. Error message: {str(e)}"""
+            Error: {e}
+            Error Type: {type(e)}
+            Error Message: {str(e)}
+            Full traceback:
+            {traceback.format_exc()}
+            """
             )
             error_obj: ValidationErrorContainer = self.handle_validation_exceptions(
                 e, dataset_path, dataset_path
@@ -218,6 +227,7 @@ class RulesEngine:
             define_xml_path=self.define_xml_path,
             standard=self.standard,
             standard_version=self.standard_version,
+            standard_substandard=self.standard_substandard,
             library_metadata=self.library_metadata,
             dataset_implementation=self.data_service.dataset_implementation,
         )
@@ -346,6 +356,7 @@ class RulesEngine:
             dataset_path,
             standard=self.standard,
             standard_version=self.standard_version,
+            standard_substandard=self.standard_substandard,
             external_dictionaries=self.external_dictionaries,
             ct_packages=ct_packages,
         )
@@ -476,30 +487,20 @@ class RulesEngine:
                     message=message,
                     status=ExecutionStatus.SKIPPED.value,
                 )
-        elif isinstance(exception, KeyError):
-            missing_column = str(exception.args[0]).strip("'")
-            traceback_str = str(exception.__traceback__)
-            is_column_access_error = any(
-                pattern in traceback_str
-                for pattern in [
-                    "NoneType",
-                    "object is None",
-                    "'NoneType'",
-                    "None has no attribute",
-                    "unsupported operand type",
-                    "bad operand type",
-                    "object is not",
-                    "cannot be None",
-                ]
+        elif isinstance(exception, DomainNotFoundError):
+            error_obj = ValidationErrorContainer(
+                dataset=os.path.basename(dataset_path),
+                message=str(exception),
+                status=ExecutionStatus.SKIPPED.value,
             )
-            if is_column_access_error:
-                error_obj = FailedValidationEntity(
-                    dataset=os.path.basename(dataset_path),
-                    error="Column Not Present",
-                    message=f"Rule evaluation skipped - '{missing_column}' not found in dataset",
-                    status=ExecutionStatus.SKIPPED.value,
-                )
-                message = "rule evaluation skipped"
+            message = "rule evaluation skipped - operation domain not found"
+            errors = [error_obj]
+            return ValidationErrorContainer(
+                dataset=os.path.basename(dataset_path),
+                errors=errors,
+                message=message,
+                status=ExecutionStatus.SKIPPED.value,
+            )
         else:
             error_obj = FailedValidationEntity(
                 dataset=os.path.basename(dataset_path),
