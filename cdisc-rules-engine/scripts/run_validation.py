@@ -66,11 +66,9 @@ def validate_single_rule(
         cache=cache,
         standard=args.standard,
         standard_version=args.version.replace(".", "-"),
+        standard_substandard=args.substandard,
+        external_dictionaries=args.external_dictionaries,
         ct_packages=args.controlled_terminology_package,
-        meddra_path=args.meddra,
-        whodrug_path=args.whodrug,
-        loinc_path=args.loinc,
-        medrt_path=args.medrt,
         define_xml_path=args.define_xml_path,
         library_metadata=library_metadata,
         max_dataset_size=max_dataset_size,
@@ -126,24 +124,26 @@ def run_validation(args: Validation_args):
     rules = get_rules(args)
     library_metadata: LibraryMetadataContainer = get_library_metadata_from_cache(args)
     # install dictionaries if needed
-    fill_cache_with_dictionaries(shared_cache, args)
+    dictionary_versions = fill_cache_with_dictionaries(shared_cache, args)
     max_dataset_size = get_max_dataset_size(args.dataset_paths)
     standard = args.standard
     standard_version = args.version.replace(".", "-")
+    standard_substandard = args.substandard
     data_service = DataServiceFactory(
         config,
         shared_cache,
         max_dataset_size=max_dataset_size,
         standard=standard,
         standard_version=standard_version,
+        standard_substandard=standard_substandard,
         library_metadata=library_metadata,
-    ).get_data_service()
+    ).get_data_service(args.dataset_paths)
     large_dataset_validation: bool = (
         data_service.dataset_implementation != PandasDataset
     )
     datasets = get_datasets(data_service, args.dataset_paths)
     created_files = []
-    if large_dataset_validation:
+    if large_dataset_validation and data_service.standard != "usdm":
         # convert all files to parquet temp files
         engine_logger.warning(
             "Large datasets must use parquet format, converting all datasets to parquet"
@@ -183,8 +183,11 @@ def run_validation(args: Validation_args):
     )
     reporting_services: List[BaseReport] = reporting_factory.get_report_services()
     for reporting_service in reporting_services:
-        reporting_service.write_report(args.define_xml_path)
-
+        reporting_service.write_report(
+            define_xml_path=args.define_xml_path,
+            dictionary_versions=dictionary_versions,
+        )
+    print(f"Output: {args.output}")
     engine_logger.info("Cleaning up intermediate files")
     for file in created_files:
         engine_logger.info(f"Deleting file {file}")

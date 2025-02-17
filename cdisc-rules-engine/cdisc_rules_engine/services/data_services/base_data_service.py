@@ -98,6 +98,7 @@ class BaseDataService(DataServiceInterface, ABC):
         )
         self.standard = kwargs.get("standard")
         self.version = (kwargs.get("standard_version") or "").replace(".", "-")
+        self.standard_substandard = kwargs.get("standard_substandard")
         self.library_metadata = kwargs.get("library_metadata")
         self.dataset_implementation = kwargs.get(
             "dataset_implementation", PandasDataset
@@ -227,10 +228,11 @@ class BaseDataService(DataServiceInterface, ABC):
         return self._handle_special_cases(dataset, domain, file_path, datasets)
 
     def _get_standard_data(self):
+
         return (
             self.library_metadata.standard_metadata
             or self.cdisc_library_service.get_standard_details(
-                self.standard, self.version
+                self.standard, self.version, self.standard_substandard
             )
         )
 
@@ -298,7 +300,7 @@ class BaseDataService(DataServiceInterface, ABC):
 
         def check_presence(key):
             in_dataset = key in dataset
-            in_values = hasattr(dataset, "values") and key in dataset.values
+            in_values = key in self.dataset_implementation.get_series_values(dataset)
             return in_dataset or in_values
 
         if not check_presence("DOMAIN") and not check_presence("RDOMAIN"):

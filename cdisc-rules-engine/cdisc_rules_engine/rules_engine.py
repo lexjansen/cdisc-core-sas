@@ -14,6 +14,7 @@ from cdisc_rules_engine.exceptions.custom_exceptions import (
     RuleFormatError,
     VariableMetadataNotFoundError,
     FailedSchemaValidation,
+    DomainNotFoundError,
 )
 from cdisc_rules_engine.interfaces import (
     CacheServiceInterface,
@@ -41,6 +42,10 @@ from cdisc_rules_engine.utilities.utils import (
     serialize_rule,
 )
 from cdisc_rules_engine.dataset_builders import builder_factory
+from cdisc_rules_engine.models.external_dictionaries_container import (
+    ExternalDictionariesContainer,
+)
+import traceback
 
 
 class RulesEngine:
@@ -49,11 +54,13 @@ class RulesEngine:
         cache: CacheServiceInterface = None,
         data_service: DataServiceInterface = None,
         config_obj: ConfigInterface = None,
+        external_dictionaries: ExternalDictionariesContainer = ExternalDictionariesContainer(),
         **kwargs,
     ):
         self.config = config_obj or default_config
         self.standard = kwargs.get("standard")
         self.standard_version = (kwargs.get("standard_version") or "").replace(".", "-")
+        self.standard_substandard = kwargs.get("standard_substandard") or None
         self.library_metadata = kwargs.get("library_metadata")
         self.max_dataset_size = kwargs.get("max_dataset_size")
         self.dataset_paths = kwargs.get("dataset_paths")
@@ -79,10 +86,7 @@ class RulesEngine:
         self.standard_version = kwargs.get("standard_version")
         self.ct_packages = kwargs.get("ct_packages", [])
         self.ct_package = kwargs.get("ct_package")
-        self.meddra_path: str = kwargs.get("meddra_path")
-        self.whodrug_path: str = kwargs.get("whodrug_path")
-        self.loinc_path: str = kwargs.get("loinc_path")
-        self.medrt_path: str = kwargs.get("medrt_path")
+        self.external_dictionaries = external_dictionaries
         self.define_xml_path: str = kwargs.get("define_xml_path")
         self.validate_xml: bool = kwargs.get("validate_xml")
 
@@ -101,6 +105,7 @@ class RulesEngine:
             InMemoryCacheService.get_instance(),
             self.standard,
             self.standard_version,
+            self.standard_substandard,
             self.library_metadata,
         ).get_dummy_data_service(datasets)
         dataset_dicts = []
@@ -192,7 +197,12 @@ class RulesEngine:
             logger.trace(e, __name__)
             logger.error(
                 f"""Error occurred during validation.
-                Error: {e}. Error message: {str(e)}"""
+            Error: {e}
+            Error Type: {type(e)}
+            Error Message: {str(e)}
+            Full traceback:
+            {traceback.format_exc()}
+            """
             )
             error_obj: ValidationErrorContainer = self.handle_validation_exceptions(
                 e, dataset_path, dataset_path
@@ -217,6 +227,7 @@ class RulesEngine:
             define_xml_path=self.define_xml_path,
             standard=self.standard,
             standard_version=self.standard_version,
+            standard_substandard=self.standard_substandard,
             library_metadata=self.library_metadata,
             dataset_implementation=self.data_service.dataset_implementation,
         )
@@ -238,6 +249,13 @@ class RulesEngine:
         # Update rule for certain rule types
         # SPECIAL CASES FOR RULE TYPES ###############################
         # TODO: Handle these special cases better.
+        if self.library_metadata:
+            kwargs[
+                "variable_codelist_map"
+            ] = self.library_metadata.variable_codelist_map
+            kwargs[
+                "codelist_term_maps"
+            ] = self.library_metadata.get_all_ct_package_metadata()
         if rule.get("rule_type") == RuleTypes.DEFINE_ITEM_METADATA_CHECK.value:
             if self.library_metadata:
                 kwargs[
@@ -246,10 +264,11 @@ class RulesEngine:
                 kwargs[
                     "codelist_term_maps"
                 ] = self.library_metadata.get_all_ct_package_metadata()
-
         elif (
             rule.get("rule_type")
             == RuleTypes.VARIABLE_METADATA_CHECK_AGAINST_DEFINE.value
+            or rule.get("rule_type")
+            == RuleTypes.VARIABLE_METADATA_CHECK_AGAINST_DEFINE_XML_AND_LIBRARY.value
         ):
             self.rule_processor.add_comparator_to_rule_conditions(
                 rule, comparator=None, target_prefix="define_"
@@ -337,10 +356,8 @@ class RulesEngine:
             dataset_path,
             standard=self.standard,
             standard_version=self.standard_version,
-            meddra_path=self.meddra_path,
-            whodrug_path=self.whodrug_path,
-            loinc_path=self.loinc_path,
-            medrt_path=self.medrt_path,
+            standard_substandard=self.standard_substandard,
+            external_dictionaries=self.external_dictionaries,
             ct_packages=ct_packages,
         )
         relationship_data = {}
@@ -397,7 +414,7 @@ class RulesEngine:
         )
         return define_xml_reader.extract_value_level_metadata(domain_name=domain_name)
 
-    def handle_validation_exceptions(
+    def handle_validation_exceptions(  # noqa
         self, exception, dataset_path, file_name
     ) -> ValidationErrorContainer:
         if isinstance(exception, DatasetNotFoundError):
@@ -470,6 +487,20 @@ class RulesEngine:
                     message=message,
                     status=ExecutionStatus.SKIPPED.value,
                 )
+        elif isinstance(exception, DomainNotFoundError):
+            error_obj = ValidationErrorContainer(
+                dataset=os.path.basename(dataset_path),
+                message=str(exception),
+                status=ExecutionStatus.SKIPPED.value,
+            )
+            message = "rule evaluation skipped - operation domain not found"
+            errors = [error_obj]
+            return ValidationErrorContainer(
+                dataset=os.path.basename(dataset_path),
+                errors=errors,
+                message=message,
+                status=ExecutionStatus.SKIPPED.value,
+            )
         else:
             error_obj = FailedValidationEntity(
                 dataset=os.path.basename(dataset_path),

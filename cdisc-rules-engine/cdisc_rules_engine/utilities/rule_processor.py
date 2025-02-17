@@ -28,7 +28,12 @@ from cdisc_rules_engine.utilities.utils import (
     is_ap_domain,
     is_supp_domain,
     search_in_list_of_dicts,
+    get_dataset_name_from_details,
 )
+from cdisc_rules_engine.models.external_dictionaries_container import (
+    ExternalDictionariesContainer,
+)
+from cdisc_rules_engine.exceptions.custom_exceptions import DomainNotFoundError
 
 
 class RuleProcessor:
@@ -220,6 +225,8 @@ class RuleProcessor:
         dataset_path: str,
         standard: str,
         standard_version: str,
+        standard_substandard: str,
+        external_dictionaries: ExternalDictionariesContainer = ExternalDictionariesContainer(),
         **kwargs,
     ) -> DatasetInterface:
         """
@@ -257,10 +264,8 @@ class RuleProcessor:
                 grouping=operation.get("group", []),
                 standard=standard,
                 standard_version=standard_version,
-                meddra_path=kwargs.get("meddra_path"),
-                whodrug_path=kwargs.get("whodrug_path"),
-                loinc_path=kwargs.get("loinc_path"),
-                medrt_path=kwargs.get("medrt_path"),
+                standard_substandard=standard_substandard,
+                external_dictionaries=external_dictionaries,
                 ct_version=operation.get("version"),
                 ct_attribute=operation.get("attribute"),
                 ct_packages=kwargs.get("ct_packages"),
@@ -276,6 +281,10 @@ class RuleProcessor:
                 dictionary_term_type=operation.get("dictionary_term_type"),
                 filter=operation.get("filter", None),
                 grouping_aliases=operation.get("group_aliases"),
+                level=operation.get("level"),
+                returntype=operation.get("returntype"),
+                codelists=operation.get("codelists"),
+                codelist=operation.get("codelist"),
             )
 
             # execute operation
@@ -324,9 +333,15 @@ class RuleProcessor:
                 operation_params.datasets,
                 lambda item: item.get("domain") == operation_params.domain,
             )
+            if domain_details is None:
+                raise DomainNotFoundError(
+                    f"Operation {operation_params.operation_name} requires Domain "
+                    f"{operation_params.domain} but Domain not found in dataset"
+                )
+            filename = get_dataset_name_from_details(domain_details)
             file_path: str = os.path.join(
                 get_directory_path(operation_params.dataset_path),
-                domain_details["filename"],
+                filename,
             )
             operation_params.dataframe = self.data_service.get_dataset(
                 dataset_name=file_path

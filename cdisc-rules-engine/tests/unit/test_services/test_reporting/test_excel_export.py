@@ -46,17 +46,6 @@ mock_validation_results = [
                         }
                     ],
                 },
-                {
-                    "Organization": "PMDA",
-                    "Standards": [
-                        {
-                            "References": [
-                                {"Rule_Identifier": {"Id": "PMDARuleID1"}},
-                                {"Rule_Identifier": {"Id": "PMDARuleID2"}},
-                            ]
-                        }
-                    ],
-                },
             ],
         },
         results=[
@@ -116,17 +105,6 @@ mock_validation_results = [
                         }
                     ],
                 },
-                {
-                    "Organization": "PMDA",
-                    "Standards": [
-                        {
-                            "References": [
-                                {"Rule_Identifier": {"Id": "PMDARuleID1"}},
-                                {"Rule_Identifier": {"Id": "PMDARuleID2"}},
-                            ]
-                        }
-                    ],
-                },
             ],
         },
         results=[
@@ -163,7 +141,6 @@ def test_get_rules_report_data():
                     "1",
                     result.cdisc_rule_id,
                     result.fda_rule_id,
-                    result.pmda_rule_id,
                     result.message,
                     ExecutionStatus.SUCCESS.value.upper(),
                 ]
@@ -174,12 +151,12 @@ def test_get_rules_report_data():
             assert report_data[i] == expected_reports[i]
 
 
-def test_get_detailed_data():
+def test_get_detailed_data(excel=True):
     with open(test_report_template, "rb") as f:
         report: ExcelReport = ExcelReport(
             [], "test", mock_validation_results, 10.1, MagicMock(), f
         )
-        detailed_data = report.get_detailed_data()
+        detailed_data = report.get_detailed_data(excel=True)
         errors = [
             [
                 mock_validation_results[0].id,
@@ -272,7 +249,11 @@ def test_get_export():
         )
         cdiscCt = ["sdtmct-03-2021"]
         wb = report.get_export(
-            define_version="2.1", cdiscCt=cdiscCt, standard="sdtmig", version="3.4"
+            define_version="2.1",
+            cdiscCt=cdiscCt,
+            standard="sdtmig",
+            version="3.4",
+            dictionary_versions={},
         )
         assert wb["Conformance Details"]["B3"].value == "10.1 seconds"
         assert wb["Conformance Details"]["B4"].value == __version__

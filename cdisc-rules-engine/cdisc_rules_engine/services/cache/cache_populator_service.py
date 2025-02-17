@@ -80,6 +80,7 @@ class CachePopulator:
             standards = self.library_service.get_all_tabulation_ig_standards()
             standards.extend(self.library_service.get_all_collection_ig_standards())
             standards.extend(self.library_service.get_all_analysis_ig_standards())
+            standards.extend(self.library_service.get_tig_standards())
 
             variable_codelist_maps = await self._get_variable_codelist_maps(standards)
             self.cache.add_batch(variable_codelist_maps, "name")
@@ -145,10 +146,19 @@ class CachePopulator:
         ]
         self.cache.add(PUBLISHED_CT_PACKAGES, available_packages)
 
-    async def load_standard(self, standard: str, version: str):
-        standards = [{"href": f"/mdr/{standard}/{version}"}]
-        variable_codelist_maps = await self._get_variable_codelist_maps(standards)
-        self.cache.add_batch(variable_codelist_maps, "name")
+    async def load_standard(
+        self, standard: str, version: str, standard_substandard: str = None
+    ):
+        if not standard_substandard:
+            standards = [{"href": f"/mdr/{standard}/{version}"}]
+            variable_codelist_maps = await self._get_variable_codelist_maps(standards)
+            self.cache.add_batch(variable_codelist_maps, "name")
+        else:
+            standards = [
+                {"href": f"/mdr/integrated/{standard}/{version}/{standard_substandard}"}
+            ]
+            variable_codelist_maps = await self._get_variable_codelist_maps(standards)
+            self.cache.add_batch(variable_codelist_maps, "name")
         # save details of all standards to cache
         standards_details: List[dict] = await self._async_get_details_of_all_standards(
             standards
@@ -311,14 +321,31 @@ class CachePopulator:
 
     async def _get_codelist_term_maps(self) -> List[dict]:
         """
-        For each CT package in CDISC library,
-        generate a map of codelist to codelist term. Ex:
+        For each CT package in CDISC library, creates mapping with:
+        1. Submission value lookup: Map of submission values to codelist/term IDs
+        2. Full codelist data: Complete metadata and terms keyed by codelist ID
         {
-            "package": "sdtmct-2021-12-17"
-            "C123": {
-                "extensible": True,
-                "allowed_terms": ["TEST", "HOUR"]
-            }
+            "package": "adamct-2024-03-29",
+            "submission_lookup": {
+                "GAD02PC": {"codelist": "C172334", "term": "N/A"},     # this is at codelist level
+                "GAD02TS": {"codelist": "C172334", "term": "C172451"}, # this is at term level
+            "C172334": {
+            "definition": "A parameter code codelist for the Generalized Anxiety Disorder - 7 Version 2 Questionnaire
+            (GAD-7 V2) to support the calculation of total score in ADaM.",
+            "extensible": False,
+            "name": "Generalized Anxiety Disorder - 7 Version 2 Questionnaire Parameter Code",
+            "preferredTerm": "CDISC ADaM Generalized Anxiety Disorder-7 Version 2 Questionnaire Parameter
+            Code Terminology",
+            "submissionValue": "GAD02PC",
+            "synonyms": ["Generalized Anxiety Disorder - 7 Version 2 Questionnaire Parameter Code"],
+            "terms": [{
+                "conceptId": "C172451",
+                "definition": "Generalized Anxiety Disorder - 7 Version 2 - Total score used for analysis.",
+                "preferredTerm": "Generalized Anxiety Disorder - 7 Version 2 - Total Score for Analysis",
+                "submissionValue": "GAD02TS",
+                "synonyms": ["GAD02-Total Score - Analysis"],
+                "extensible": False
+        }]
         }
         """
         packages = self.library_service.get_all_ct_packages()
@@ -337,18 +364,29 @@ class CachePopulator:
         return terms_map
 
     async def _get_variable_codelist_maps(self, standards: List[dict]) -> List[dict]:
-        coroutines = [
-            self._async_get_variable_codelist_map(
-                standard.get("href", "").split("/")[-2],
-                standard.get("href", "").split("/")[-1],
-            )
-            for standard in standards
-        ]
+        coroutines = []
+        for standard in standards:
+            href_parts = standard.get("href", "").split("/")
+            if len(href_parts) >= 5 and href_parts[-4] == "integrated":
+                coroutines.append(
+                    self._async_get_variable_codelist_map(
+                        href_parts[-3], href_parts[-2], href_parts[-1]
+                    )
+                )
+            else:
+                coroutines.append(
+                    self._async_get_variable_codelist_map(
+                        href_parts[-2], href_parts[-1]
+                    )
+                )
         variable_codelist_maps = await asyncio.gather(*coroutines)
         return variable_codelist_maps
 
     async def _async_get_variable_codelist_map(
-        self, standard_type: str, standard_version: str
+        self,
+        standard_type: str,
+        standard_version: str,
+        standard_substandard: str = None,
     ) -> dict:
         loop = asyncio.get_event_loop()
         variables_map: dict = await loop.run_in_executor(
@@ -356,6 +394,7 @@ class CachePopulator:
             self.library_service.get_variable_codelists_map,
             standard_type,
             standard_version,
+            standard_substandard,
         )
         return variables_map
 
@@ -365,17 +404,26 @@ class CachePopulator:
         """
         Gets details for each given standard.
         """
-        coroutines = [
-            self._async_get_standard_details(
-                standard.get("href", "").split("/")[-2],
-                standard.get("href", "").split("/")[-1],
-            )
-            for standard in standards
-        ]
+        coroutines = []
+        for standard in standards:
+            href_parts = standard.get("href", "").split("/")
+            if len(href_parts) >= 5 and href_parts[-4] == "integrated":
+                coroutines.append(
+                    self._async_get_standard_details(
+                        href_parts[-3], href_parts[-2], href_parts[-1]
+                    )
+                )
+            else:
+                coroutines.append(
+                    self._async_get_standard_details(href_parts[-2], href_parts[-1])
+                )
         return await asyncio.gather(*coroutines)
 
     async def _async_get_standard_details(
-        self, standard_type: str, standard_version: str
+        self,
+        standard_type: str,
+        standard_version: str,
+        standard_substandard: str = None,
     ) -> dict:
         """
         Gets details of a given standard.
@@ -386,9 +434,10 @@ class CachePopulator:
             self.library_service.get_standard_details,
             standard_type,
             standard_version,
+            standard_substandard,
         )
         standard_details["cache_key"] = get_standard_details_cache_key(
-            standard_type, standard_version
+            standard_type, standard_version, standard_substandard
         )
         return standard_details
 
@@ -426,18 +475,27 @@ class CachePopulator:
         """
         Returns a list of dicts of variables metadata for each standard.
         """
-        coroutines = [
-            self._async_get_variables_metadata(
-                standard.get("href", "").split("/")[-2],
-                standard.get("href", "").split("/")[-1],
-            )
-            for standard in standards
-        ]
+        coroutines = []
+        for standard in standards:
+            href_parts = standard.get("href", "").split("/")
+            if len(href_parts) >= 5 and href_parts[-4] == "integrated":
+                coroutines.append(
+                    self._async_get_variables_metadata(
+                        href_parts[-3], href_parts[-2], href_parts[-1]
+                    )
+                )
+            else:
+                coroutines.append(
+                    self._async_get_variables_metadata(href_parts[-2], href_parts[-1])
+                )
         metadata = await asyncio.gather(*coroutines)
         return filter(lambda item: item is not None, metadata)
 
     async def _async_get_variables_metadata(
-        self, standard_type: str, standard_version: str
+        self,
+        standard_type: str,
+        standard_version: str,
+        standard_substandard: str = None,
     ) -> Optional[dict]:
         """
         Returns variables metadata for a given standard.
@@ -450,13 +508,14 @@ class CachePopulator:
                     self.library_service.get_variables_details,
                     standard_type,
                     standard_version,
+                    standard_substandard,
                 ),
             )
         except LibraryResourceNotFoundException:
             return None
         return {
             "cache_key": get_library_variables_metadata_cache_key(
-                standard_type, standard_version
+                standard_type, standard_version, standard_substandard
             ),
             **variables_metadata,
         }

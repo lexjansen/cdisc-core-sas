@@ -2,7 +2,7 @@
 
 The [cdisc-core-sas GitHub repository](https://github.com/lexjansen/cdisc-core-sas) contains working files and other artefacts to support a Proof of Concept for running CDISC CORE within SAS.
 
-This Proof of Concepts is based on CORE release v0.8.1 (September 24, 2024) and was developed on Windows 10 with SAS 9.4 TS1M7.
+This Proof of Concepts is based on CORE release v0.9.1 (January 16, 2025) and was developed on Windows 10 with SAS 9.4 TS1M7.
 
 ## Supported python versions
 
