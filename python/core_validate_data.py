@@ -11,6 +11,10 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
       core_path = os.environ["CORE_PATH"]
       lib_path = os.path.abspath(os.path.join(__file__, core_path))
       if lib_path not in sys.path: sys.path.append(lib_path)
+        
+      current_path = os.getcwd()
+      print(f"Current working directory: {current_path}")
+      os.chdir(core_path)
 
       import asyncio
       import json
@@ -153,14 +157,16 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
                   logger.error(
                       f"Argument --data contains more than one allowed file format ({', '.join(found_formats)})."  # noqa: E501
                   )
-                  return
+                  validation_message = "dataset_path contains more than one allowed file format."
+                  return validation_message
           elif dataset_path:
               dataset_paths, found_formats = valid_data_file([dp for dp in dataset_path])
               if len(found_formats) > 1:
                   logger.error(
                       f"Argument --dataset_path contains more than one allowed file format ({', '.join(found_formats)})."  # noqa: E501
                   )
-                  return
+                  validation_message = "dataset_path contains more than one allowed file format."
+                  return validation_message
           else:
               logger.error(
                   "You must pass one of the following arguments: --dataset-path, --data"
