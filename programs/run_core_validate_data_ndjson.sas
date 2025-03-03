@@ -8,34 +8,20 @@
 
 %let report_name = CORE-Report-%sysfunc(translate(%sysfunc(datetime(), e8601dt.), %str(-), %str(:)));
 
-/* Example of selecting rules */
-proc sql noprint;
-  select distinct core_id into :core_rules separated by ','
-  from metadata.core_rules
-  where (domains_include in ('ALL' 'AE' 'DM')) and (domains_exclude ne 'DM') and (domains_exclude ne 'AE')
-         and (core_standard = "sdtmig" and core_standard_version =  "3-3")
-  order by core_id;
-quit;
-
-%put &=core_rules;
-
-options noquotelenmax;
 %core_validate_data(
   cache_path = &project_folder/resources/cache,
   pool_size = 10,
-  dataset_path = %str
-    (&project_folder/testdata/sdtm/dm.xpt, 
-     &project_folder/testdata/sdtm/ae.xpt),
+  data= &project_folder/testdata/sdtm_ndjson,
   standard = sdtmig,
   version = 3-3,
   /*
   controlled_terminology_package = %str(sdtmct-2023-12-15),
   */
-  output= &project_folder/reports/&report_name._sdtmig_3-3_select,
+  output= &project_folder/reports/&report_name._sdtmig_3-3_ndjson,
   output_format = %str(XLSX, JSON),
   raw_report = 0,
   define_version=2.1.0,
-  define_xml_path = &project_folder/testdata/sdtm/define.xml,
+  define_xml_path = &project_folder/testdata/sdtm_ndjson/define.xml,
   whodrug = &project_folder/testdata/dictionaries/whodrug,
   meddra = &project_folder/testdata/dictionaries/meddra,
   loinc = &project_folder/testdata/dictionaries/loinc,
@@ -43,5 +29,5 @@ options noquotelenmax;
   unii = &project_folder/testdata/dictionaries/unii,
   snomed_version = 2024-09-01,
   snomed_edition = SNOMEDCT-US,
-  rules = "&core_rules"
+  rules =
   );

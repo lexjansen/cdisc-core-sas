@@ -9,6 +9,10 @@ def core_update_cache(apikey, cache_path, local_rules, local_rules_id, remove_ru
   lib_path = os.path.abspath(os.path.join(__file__, core_path))
   if lib_path not in sys.path: sys.path.append(lib_path)
 
+  current_path = os.getcwd()
+  print(f"Current working directory: {current_path}")
+  os.chdir(core_path)
+
   if not apikey:
     apikey = os.environ["CDISC_LIBRARY_API_KEY"]
 

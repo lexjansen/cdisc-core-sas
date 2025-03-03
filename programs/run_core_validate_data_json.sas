@@ -12,10 +12,6 @@
   cache_path = &project_folder/resources/cache,
   pool_size = 10,
   data= &project_folder/testdata/sdtm_json,
-  /*
-  dataset_path = %str
-    (&project_folder/testdata/sdtm/dm.xpt, &project_folder/testdata/sdtm/ae.xpt),
-  */
   standard = sdtmig,
   version = 3-3,
   /*
@@ -25,7 +21,7 @@
   output_format = %str(XLSX, JSON),
   raw_report = 0,
   define_version=2.1.0,
-  define_xml_path = &project_folder/testdata/sdtm/define.xml,
+  define_xml_path = &project_folder/testdata/sdtm_json/define.xml,
   whodrug = &project_folder/testdata/dictionaries/whodrug,
   meddra = &project_folder/testdata/dictionaries/meddra,
   loinc = &project_folder/testdata/dictionaries/loinc,

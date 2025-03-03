@@ -41,5 +41,6 @@ venv.bak/
 *.egp
 programs/*.cmd
 
+archive/
 develop/
 cdisc-rules-engine-*/

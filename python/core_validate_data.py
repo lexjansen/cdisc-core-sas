@@ -149,23 +149,24 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
                   logger.error(
                       "Argument --dataset-path cannot be used together with argument --data"
                   )
-                  return
+                  validation_message = "Argument --dataset-path cannot be used together with argument --data"
+                  return validation_message
               dataset_paths, found_formats = valid_data_file(
                   [str(Path(data).joinpath(fn)) for fn in os.listdir(data)]
               )
               if len(found_formats) > 1:
                   logger.error(
-                      f"Argument --data contains more than one allowed file format ({', '.join(found_formats)})."  # noqa: E501
+                      f"Argument --data contains more than one allowed file format ({', '.join(found_formats)})."
                   )
-                  validation_message = "dataset_path contains more than one allowed file format."
+                  validation_message = "Argument --data contains more than one allowed file format: " + ", ".join(found_formats)
                   return validation_message
           elif dataset_path:
               dataset_paths, found_formats = valid_data_file([dp for dp in dataset_path])
               if len(found_formats) > 1:
                   logger.error(
-                      f"Argument --dataset_path contains more than one allowed file format ({', '.join(found_formats)})."  # noqa: E501
+                      f"Argument --dataset-path contains more than one allowed file format ({', '.join(found_formats)})."
                   )
-                  validation_message = "dataset_path contains more than one allowed file format."
+                  validation_message = "Argument --dataset-path contains more than one allowed file format: " + ", ".join(found_formats)
                   return validation_message
           else:
               logger.error(
