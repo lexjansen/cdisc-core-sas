@@ -24,5 +24,6 @@ data metadata.core_ct(keep=value rename=(value=ct_package));
   set jsonfile.alldata;
 run;
 
+libname metadata clear;
 filename ct clear;
 libname jsonfile clear;

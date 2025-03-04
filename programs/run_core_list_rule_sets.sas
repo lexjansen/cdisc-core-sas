@@ -28,7 +28,8 @@ run;
 
 proc sort data = metadata.core_rulesets;
   by standard version;
-run;  
+run;
 
+libname metadata clear;
 filename rulesets clear;
 libname jsonfile clear;

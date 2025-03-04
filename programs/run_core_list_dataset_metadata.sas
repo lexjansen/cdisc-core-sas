@@ -42,3 +42,5 @@ ods excel file = "&project_folder/reports/core_dataset_metadata.xlsx"
 ods excel close;
 ods html5 close;
 ods listing;
+
+libname metadata clear;

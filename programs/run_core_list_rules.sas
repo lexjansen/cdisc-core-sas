@@ -60,3 +60,4 @@ ods excel close;
 ods html5 close;
 ods listing;
 
+libname metadata clear;
