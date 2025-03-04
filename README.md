@@ -59,6 +59,9 @@ After this all the other SAS programs can run:
 - `programs/run_core_list_rule_sets.sas`
 - `programs/run_core_validate_data.sas`
 - `programs/run_core_validate_data_select.sas`
+- `programs/run_core_validate_data_local.sas`
+- `programs/run_core_validate_data_json.sas`
+- `programs/run_core_validate_data_ndjson.sas`
 
 ## Documentation
 
