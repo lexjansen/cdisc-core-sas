@@ -4,7 +4,6 @@ import logging
 import os
 import sys
 import pickle
-import pyreadstat
 import tempfile
 from datetime import datetime
 from multiprocessing import freeze_support
@@ -395,39 +394,17 @@ def update_cache(
     cache_populator = CachePopulator(
         cache, library_service, local_rules, local_rules_id, remove_rules, cache_path
     )
-    cache = asyncio.run(cache_populator.load_cache_data())
     if remove_rules:
-        cache_populator.save_removed_rules_locally(
-            os.path.join(cache_path, DefaultFilePaths.LOCAL_RULES_CACHE_FILE.value),
-            remove_rules,
-        )
+        cache_populator.save_removed_rules_locally()
         print("Local rules removed from cache")
     elif local_rules and local_rules_id:
-        cache_populator.save_local_rules_locally(
-            os.path.join(cache_path, DefaultFilePaths.LOCAL_RULES_CACHE_FILE.value),
-            local_rules_id,
-        )
+        cache_populator.save_local_rules_locally()
         print("Local rules saved to cache")
+    elif not local_rules and not remove_rules:
+        asyncio.run(cache_populator.update_cache())
     else:
-        cache_populator.save_rules_locally(
-            os.path.join(cache_path, DefaultFilePaths.RULES_CACHE_FILE.value)
-        )
-        cache_populator.save_ct_packages_locally(f"{cache_path}")
-        cache_populator.save_standards_metadata_locally(
-            os.path.join(cache_path, DefaultFilePaths.STANDARD_DETAILS_CACHE_FILE.value)
-        )
-        cache_populator.save_standards_models_locally(
-            os.path.join(cache_path, DefaultFilePaths.STANDARD_MODELS_CACHE_FILE.value)
-        )
-        cache_populator.save_variable_codelist_maps_locally(
-            os.path.join(
-                cache_path, DefaultFilePaths.VARIABLE_CODELIST_CACHE_FILE.value
-            )
-        )
-        cache_populator.save_variables_metadata_locally(
-            os.path.join(
-                cache_path, DefaultFilePaths.VARIABLE_METADATA_CACHE_FILE.value
-            )
+        raise ValueError(
+            "Must Specify either local_rules_path and local_rules_id, remove_local_rules, or neither"
         )
     print("Cache updated successfully")
 
@@ -640,8 +617,8 @@ def test(
         rule,
         standard,
         version,
-        whodrugsubstandard,
-        meddraexternal_dictionaries,
+        substandard,
+        external_dictionaries,
         controlled_terminology_package,
         define_version,
         define_xml_path,
@@ -703,7 +680,7 @@ def list_dataset_metadata(
               "domain":"AE",
               "filename":"ae.xpt",
               "full_path":"/Users/Aleksei_Furmenkov/PycharmProjects/cdisc-rules-engine/resources/data/ae.xpt",
-              "size":"38000",
+              "file_size":"38000",
               "label":"Adverse Events",
               "modification_date":"2020-08-21T09:14:26"
            },
@@ -711,7 +688,7 @@ def list_dataset_metadata(
               "domain":"EX",
               "filename":"ex.xpt",
               "full_path":"/Users/Aleksei_Furmenkov/PycharmProjects/cdisc-rules-engine/resources/data/ex.xpt",
-              "size":"78050",
+              "file_size":"78050",
               "label":"Exposure",
               "modification_date":"2021-09-17T09:23:22"
            },
@@ -785,7 +762,6 @@ def test_validate():
     try:
         import sys
         import os
-        import tempfile
         from cdisc_rules_engine.models.validation_args import Validation_args
         from cdisc_rules_engine.models.external_dictionaries_container import (
             ExternalDictionariesContainer,
@@ -889,7 +865,7 @@ if __name__ == "__main__":
 
     version()
 
-    # update_cache(apikey=os.environ.get("CDISC_LIBRARY_API_KEY"), cache_path='./resources/cache')
+    update_cache(apikey=os.environ.get("CDISC_LIBRARY_API_KEY"), cache_path='./resources/cache')
     update_cache(apikey=os.environ.get("CDISC_LIBRARY_API_KEY"), cache_path='./resources/cache', remove_rules='CUSTOM123')
     update_cache(apikey=os.environ.get("CDISC_LIBRARY_API_KEY"), cache_path='./resources/cache', local_rules='./testdata/rules', local_rules_id='CUSTOM123')
     list_rule_sets(output="./json/core_rule_sets.json")
@@ -986,5 +962,4 @@ if __name__ == "__main__":
         # progress='disabled',
     )
 
-    test_pyreadstat()
     test_validate()

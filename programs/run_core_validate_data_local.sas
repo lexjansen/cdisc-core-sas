@@ -11,9 +11,6 @@
 %core_validate_data(
   cache_path = &project_folder/resources/cache,
   pool_size = 10,
-  /*
-  data= &project_folder/testdata/sdtm,
-  */
   dataset_path = %str
     (&project_folder/testdata/sdtm/dm.xpt, &project_folder/testdata/sdtm/vs.xpt),
   standard = sdtmig,
@@ -21,7 +18,7 @@
   /*
   controlled_terminology_package = %str(sdtmct-2023-12-15),
   */
-  output= &project_folder/reports/&report_name._sdtmig_3-2_local,
+  output= &project_folder/reports/&report_name._sdtmig_3-3_local,
   output_format = %str(XLSX, JSON),
   raw_report = 0,
   define_version=2.1.0,
