@@ -9,6 +9,10 @@ def core_update_cache(apikey, cache_path, local_rules, local_rules_id, remove_ru
   lib_path = os.path.abspath(os.path.join(__file__, core_path))
   if lib_path not in sys.path: sys.path.append(lib_path)
 
+  current_path = os.getcwd()
+  print(f"Current working directory: {current_path}")
+  os.chdir(core_path)
+
   if not apikey:
     apikey = os.environ["CDISC_LIBRARY_API_KEY"]
 
@@ -25,53 +29,31 @@ def core_update_cache(apikey, cache_path, local_rules, local_rules_id, remove_ru
       cache_path: str = DefaultFilePaths.CACHE.value,
       local_rules: str = '',
       local_rules_id: str = '',
-      remove_rules: str = ''  
+      remove_rules: str = ''
       ):
       cache = CacheServiceFactory(config).get_cache_service()
       library_service = CDISCLibraryService(apikey, cache)
       cache_populator = CachePopulator(
           cache, library_service, local_rules, local_rules_id, remove_rules, cache_path
       )
-      cache = asyncio.run(cache_populator.load_cache_data())
       if remove_rules:
-          cache_populator.save_removed_rules_locally(
-              os.path.join(cache_path, DefaultFilePaths.LOCAL_RULES_CACHE_FILE.value),
-              remove_rules,
-          )
+          cache_populator.save_removed_rules_locally()
           print("Local rules removed from cache")
       elif local_rules and local_rules_id:
-          cache_populator.save_local_rules_locally(
-              os.path.join(cache_path, DefaultFilePaths.LOCAL_RULES_CACHE_FILE.value),
-              local_rules_id,
-          )
+          cache_populator.save_local_rules_locally()
           print("Local rules saved to cache")
+      elif not local_rules and not remove_rules:
+          asyncio.run(cache_populator.update_cache())
       else:
-          cache_populator.save_rules_locally(
-              os.path.join(cache_path, DefaultFilePaths.RULES_CACHE_FILE.value)
-          )
-          cache_populator.save_ct_packages_locally(f"{cache_path}")
-          cache_populator.save_standards_metadata_locally(
-              os.path.join(cache_path, DefaultFilePaths.STANDARD_DETAILS_CACHE_FILE.value)
-          )
-          cache_populator.save_standards_models_locally(
-              os.path.join(cache_path, DefaultFilePaths.STANDARD_MODELS_CACHE_FILE.value)
-          )
-          cache_populator.save_variable_codelist_maps_locally(
-              os.path.join(
-                  cache_path, DefaultFilePaths.VARIABLE_CODELIST_CACHE_FILE.value
-              )
-          )
-          cache_populator.save_variables_metadata_locally(
-              os.path.join(
-                  cache_path, DefaultFilePaths.VARIABLE_METADATA_CACHE_FILE.value
-              )
+          raise ValueError(
+              "Must Specify either local_rules_path and local_rules_id, remove_local_rules, or neither"
           )
       print("Cache updated successfully")
 
   update_cache(
-      apikey=apikey, 
-      cache_path=cache_path, 
-      local_rules=local_rules, 
-      local_rules_id=local_rules_id, 
+      apikey=apikey,
+      cache_path=cache_path,
+      local_rules=local_rules,
+      local_rules_id=local_rules_id,
       remove_rules=remove_rules
       )

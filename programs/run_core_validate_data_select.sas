@@ -23,9 +23,6 @@ options noquotelenmax;
 %core_validate_data(
   cache_path = &project_folder/resources/cache,
   pool_size = 10,
-  /*
-  data= &project_folder/testdata/sdtm,
-  */
   dataset_path = %str
     (&project_folder/testdata/sdtm/dm.xpt, 
      &project_folder/testdata/sdtm/ae.xpt),

@@ -129,9 +129,9 @@ class BaseOperation:
         else:
             # Handle single results
 
-            self.evaluation_dataset[
-                self.params.operation_id
-            ] = self.evaluation_dataset.get_series_from_value(result)
+            self.evaluation_dataset[self.params.operation_id] = (
+                self.evaluation_dataset.get_series_from_value(result)
+            )
             return self.evaluation_dataset
 
     def _handle_grouped_result(self, result):
@@ -179,15 +179,28 @@ class BaseOperation:
             self.params.grouping
             if not self.params.grouping_aliases
             else [
-                self.params.grouping_aliases[i]
-                if 0 <= i < len(self.params.grouping_aliases)
-                else v
+                (
+                    self.params.grouping_aliases[i]
+                    if 0 <= i < len(self.params.grouping_aliases)
+                    else v
+                )
                 for i, v in enumerate(self.params.grouping)
             ]
         )
 
     def _get_variables_metadata_from_standard(self) -> List[dict]:
         # TODO: Update to handle other standard types: adam, cdash, etc.
+        target_metadata = None
+        for ds in self.params.datasets:
+            if ds.name == self.params.domain:
+                target_metadata = ds
+                break
+        dataset_class = self.data_service.get_dataset_class(
+            self.evaluation_dataset,
+            self.params.dataset_path,
+            self.params.datasets,
+            target_metadata,
+        )
 
         return sdtm_utilities.get_variables_metadata_from_standard(
             self.params.standard,
@@ -196,6 +209,7 @@ class BaseOperation:
             config,
             self.cache,
             self.library_metadata,
+            dataset_class,
         )
 
     def get_allowed_variable_permissibility(self, variable_metadata: dict):
@@ -226,9 +240,9 @@ class BaseOperation:
 
     def _get_variable_names_list(self, domain, dataframe):
         # get variables metadata from the standard model
-        variables_metadata: List[
-            dict
-        ] = self._get_variables_metadata_from_standard_model(domain, dataframe)
+        variables_metadata: List[dict] = (
+            self._get_variables_metadata_from_standard_model(domain, dataframe)
+        )
         # create a list of variable names in accordance to the "ordinal" key
         variable_names_list = self._replace_variable_wildcards(
             variables_metadata, domain

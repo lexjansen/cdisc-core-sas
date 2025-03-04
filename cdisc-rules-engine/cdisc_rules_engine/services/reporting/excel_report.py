@@ -19,6 +19,7 @@ from cdisc_rules_engine.utilities.reporting_utilities import (
     get_define_version,
     get_define_ct,
 )
+from cdisc_rules_engine.models.sdtm_dataset_metadata import SDTMDatasetMetadata
 from pathlib import Path
 
 
@@ -29,7 +30,7 @@ class ExcelReport(BaseReport):
 
     def __init__(
         self,
-        datasets: Iterable[dict],
+        datasets: Iterable[SDTMDatasetMetadata],
         dataset_paths: Iterable[str],
         validation_results: List[RuleValidationResult],
         elapsed_time: float,
@@ -67,12 +68,12 @@ class ExcelReport(BaseReport):
         # write dataset metadata
         datasets_data = [
             [
-                dataset.get("filename"),
-                dataset.get("label"),
-                str(Path(dataset.get("full_path", "")).parent),
-                dataset.get("modification_date"),
-                dataset.get("size", 0) / 1000,
-                dataset.get("length"),
+                dataset.filename,
+                dataset.label,
+                str(Path(dataset.full_path or "").parent),
+                dataset.modification_date,
+                (dataset.file_size or 0) / 1000,
+                dataset.record_count,
             ]
             for dataset in self._datasets
         ]
@@ -94,21 +95,25 @@ class ExcelReport(BaseReport):
         wb["Conformance Details"]["B10"] = define_version
 
         # Populate external dictionary versions
-        wb["Conformance Details"]["B11"] = dictionary_versions.get(
-            DictionaryTypes.UNII.value
-        )
-        wb["Conformance Details"]["B12"] = dictionary_versions.get(
-            DictionaryTypes.MEDRT.value
-        )
-        wb["Conformance Details"]["B13"] = dictionary_versions.get(
-            DictionaryTypes.MEDDRA.value
-        )
-        wb["Conformance Details"]["B14"] = dictionary_versions.get(
-            DictionaryTypes.WHODRUG.value
-        )
-        wb["Conformance Details"]["B15"] = dictionary_versions.get(
-            DictionaryTypes.SNOMED.value
-        )
+        unii_version = dictionary_versions.get(DictionaryTypes.UNII.value)
+        if unii_version is not None:
+            wb["Conformance Details"]["B11"] = unii_version
+
+        medrt_version = dictionary_versions.get(DictionaryTypes.MEDRT.value)
+        if medrt_version is not None:
+            wb["Conformance Details"]["B12"] = medrt_version
+
+        meddra_version = dictionary_versions.get(DictionaryTypes.MEDDRA.value)
+        if meddra_version is not None:
+            wb["Conformance Details"]["B13"] = meddra_version
+
+        whodrug_version = dictionary_versions.get(DictionaryTypes.WHODRUG.value)
+        if whodrug_version is not None:
+            wb["Conformance Details"]["B14"] = whodrug_version
+
+        snomed_version = dictionary_versions.get(DictionaryTypes.SNOMED.value)
+        if snomed_version is not None:
+            wb["Conformance Details"]["B15"] = snomed_version
         return wb
 
     def write_report(self, **kwargs):
@@ -119,9 +124,7 @@ class ExcelReport(BaseReport):
             if define_xml_path:
                 define_version = get_define_version([define_xml_path])
             else:
-                define_version: str = self._args.define_version or get_define_version(
-                    self._args.dataset_paths
-                )
+                define_version: str = self._args.define_version
             controlled_terminology = self._args.controlled_terminology_package
             if not controlled_terminology and define_version:
                 if define_xml_path and define_version:

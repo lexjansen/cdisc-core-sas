@@ -13,6 +13,10 @@ def core_list_rule_sets(output: str, cache_path: str):
     lib_path = os.path.abspath(os.path.join(__file__, core_path))
     if lib_path not in sys.path: sys.path.append(lib_path)
 
+    current_path = os.getcwd()
+    print(f"Current working directory: {current_path}")
+    os.chdir(core_path)
+
     import json
     import pickle
     from cdisc_rules_engine.enums.default_file_paths import DefaultFilePaths
