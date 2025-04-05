@@ -1,6 +1,7 @@
 from datetime import datetime
 from io import IOBase
-from typing import List, Optional, Iterable
+from json import load
+from typing import List, Optional, Iterable, Sequence
 
 import os
 import pandas as pd
@@ -62,7 +63,6 @@ class DummyDataService(BaseDataService):
             df: pd.DataFrame = dataset.data
             df = df.applymap(lambda x: x.decode("utf-8") if isinstance(x, bytes) else x)
             result = PandasDataset(df)
-            self._replace_nans_in_numeric_cols_with_none(result)
             return result
         else:
             return PandasDataset.from_dict({})
@@ -162,3 +162,21 @@ class DummyDataService(BaseDataService):
 
     def get_datasets(self) -> Iterable[SDTMDatasetMetadata]:
         return self.data
+
+    @staticmethod
+    def get_data(dataset_paths: Sequence[str]):
+        with open(dataset_paths[0]) as fp:
+            json = load(fp)
+            return [DummyDataset(data) for data in json.get("datasets", [])]
+
+    @staticmethod
+    def is_valid_data(dataset_paths: Sequence[str]):
+        if (
+            dataset_paths
+            and len(dataset_paths) == 1
+            and dataset_paths[0].lower().endswith(".json")
+        ):
+            with open(dataset_paths[0]) as fp:
+                json = load(fp)
+                return "datasets" in json
+        return False

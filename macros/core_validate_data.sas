@@ -17,6 +17,7 @@
        This flag must be used only with output_format=JSON. Default is 0.
 @param define_version - optional - Define-XML version used for validation
 @param define_xml_path - optional - Path to Define-XML
+@param validate_xml - required - Enable XML validation (default 'y' to enable, otherwise disable)
 @param whodrug - optional - Path to directory with WHODrug dictionary files
 @param meddra - optional - Path to directory with MedDRA dictionary files
 @param loinc - optional - Path to directory with LOINC dictionary files
@@ -50,6 +51,7 @@
   raw_report = 0,
   define_version =,
   define_xml_path =,
+  validate_xml = y,
   whodrug =,
   meddra =,
   loinc =,
@@ -184,7 +186,7 @@
   data _null_;
     message = core_validate_data("&cache_path", &pool_size, "&data", "&dataset_path", "&log_level", "&report_template", 
       "&standard", "&version", "&substandard", "&output",  "&output_format",  &raw_report, "&controlled_terminology_package",
-      "&define_version", "&define_xml_path", 
+      "&define_version", "&define_xml_path", "&validate_xml",
       "&whodrug", "&meddra", "&loinc", "&medrt", "&unii", "&snomed_version", "&snomed_edition", "&snomed_url", 
       "&rules", "&local_rules", &local_rules_cache, "&local_rules_id");
     if not missing(message) then putlog "ERR" "OR: " message;

@@ -1,6 +1,6 @@
 import os
 from io import IOBase
-from typing import Iterable, List
+from typing import List, Sequence
 from json import load
 from jsonpath_ng import DatumInContext
 from jsonpath_ng.ext import parse
@@ -190,20 +190,10 @@ class USDMDataService(BaseDataService):
     def get_datasets(self) -> List[dict]:
         datasets = []
         for dataset in self.dataset_content_index:
-            metadata: SDTMDatasetMetadata = self.get_raw_dataset_metadata(
+            dataset_metadata: SDTMDatasetMetadata = self.get_raw_dataset_metadata(
                 dataset_name=dataset["dataset_name"]
             )
-            datasets.append(
-                {
-                    "domain": metadata.domain,
-                    "filename": metadata.filename,
-                    "full_path": metadata.full_path,
-                    "length": metadata.record_count,
-                    "label": metadata.label,
-                    "file_size": metadata.file_size,
-                    "modification_date": metadata.modification_date,
-                }
-            )
+            datasets.append(dataset_metadata)
         return datasets
 
     def to_parquet(self, file_path: str) -> str:
@@ -387,7 +377,7 @@ class USDMDataService(BaseDataService):
         return extract_file_name_from_path_string(dataset_name).split(".")[0]
 
     @staticmethod
-    def is_USDM_data(dataset_paths: Iterable[str]):
+    def is_valid_data(dataset_paths: Sequence[str]):
         if (
             dataset_paths
             and len(dataset_paths) == 1

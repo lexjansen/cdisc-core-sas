@@ -30,7 +30,6 @@ from cdisc_rules_engine.exceptions.custom_exceptions import (
     RuleExecutionError,
     RuleFormatError,
     InvalidMatchKeyError,
-    InvalidOutputVariables,
     VariableMetadataNotFoundError,
     DomainNotFoundInDefineXMLError,
     InvalidDatasetFormat,
@@ -79,7 +78,6 @@ class BaseOperation:
             RuleExecutionError,
             RuleFormatError,
             InvalidMatchKeyError,
-            InvalidOutputVariables,
             VariableMetadataNotFoundError,
             DomainNotFoundInDefineXMLError,
             InvalidDatasetFormat,
@@ -192,7 +190,7 @@ class BaseOperation:
         # TODO: Update to handle other standard types: adam, cdash, etc.
         target_metadata = None
         for ds in self.params.datasets:
-            if ds.name == self.params.domain:
+            if ds.unsplit_name == self.params.domain:
                 target_metadata = ds
                 break
         dataset_class = self.data_service.get_dataset_class(

@@ -1,5 +1,5 @@
 def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_template, standard, version, substandard,
-                       output, output_format, raw_report, controlled_terminology_package, define_version, define_xml_path,
+                       output, output_format, raw_report, controlled_terminology_package, define_version, define_xml_path, validate_xml,
                        whodrug, meddra, loinc, medrt, unii, snomed_version, snomed_edition, snomed_url,
                        rules, local_rules, local_rules_cache, local_rules_id):
       """Output: message_return_value"""
@@ -28,11 +28,9 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
 
       from pathlib import Path
       from cdisc_rules_engine.config import config
-      from cdisc_rules_engine.constants.define_xml_constants import DEFINE_XML_FILE_NAME
       from cdisc_rules_engine.enums.default_file_paths import DefaultFilePaths
       from cdisc_rules_engine.enums.progress_parameter_options import ProgressParameterOptions
       from cdisc_rules_engine.enums.report_types import ReportTypes
-      from cdisc_rules_engine.enums.dataformat_test_types import TestDataFormatTypes
       from cdisc_rules_engine.enums.dataformat_types import DataFormatTypes
       from cdisc_rules_engine.models.validation_args import Validation_args
       from scripts.run_validation import run_validation
@@ -47,11 +45,8 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
       from scripts.list_dataset_metadata_handler import list_dataset_metadata_handler
       from version import __version__
 
-      def valid_data_file(data_path: list, test: bool = False) -> Tuple[list, set]:
-          if test:
-              allowed_formats = [format.value for format in TestDataFormatTypes]
-          else:
-              allowed_formats = [format.value for format in DataFormatTypes]
+      def valid_data_file(data_path: list) -> Tuple[list, set]:
+          allowed_formats = [format.value for format in DataFormatTypes]
           found_formats = set()
           file_list = []
           for file in data_path:
@@ -84,6 +79,7 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
           local_rules_cache: bool = False,
           local_rules_id: str = '',
           define_xml_path: str = '',
+          validate_xml: str = '',
           whodrug: str ='',
           meddra: str = '',
           loinc: str = '',
@@ -176,6 +172,7 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
               # no need to define dataset_paths here, the program execution will stop
               return validation_message
 
+          validate_xml_bool = True if validate_xml.lower() in ("y", "yes") else False
           run_validation(
               Validation_args(
                   cache_path,
@@ -198,6 +195,7 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
                   local_rules_id,
                   progress,
                   define_xml_path,
+                  validate_xml_bool
               )
           )
 
@@ -229,7 +227,9 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
            rules=re.split(';|,', rules),
            local_rules=local_rules,
            local_rules_cache=local_rules_cache,
-           local_rules_id=local_rules_id
+           local_rules_id=local_rules_id,
+           define_xml_path=define_xml_path,
+           validate_xml=validate_xml
        )
 
       return return_message
