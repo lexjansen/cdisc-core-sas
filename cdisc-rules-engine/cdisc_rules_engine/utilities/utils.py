@@ -188,6 +188,7 @@ def replace_pattern_in_list_of_strings(
 
 
 def get_operations_cache_key(
+    core_id: str,
     directory_path: str,
     operation_id: str,
     domain: str = None,
@@ -199,7 +200,7 @@ def get_operations_cache_key(
     """
     Creates the cache key for operations.
     """
-    key = f"operations/{directory_path}/{operation_id}"
+    key = f"operations/{core_id}/{directory_path}/{operation_id}"
     optional_items = [domain, operation_name, grouping, target_variable, dataset_path]
     for item in optional_items:
         if item:
@@ -295,17 +296,11 @@ def generate_report_filename(generation_time: str) -> str:
     return f"CORE-Report-{timestamp}"
 
 
-def get_rules_cache_key(standard: str, version: str, rule_id: str = None) -> str:
-    key = f"rules/{standard}/{version}/"
-    if rule_id:
-        key = f"{key}{rule_id}"
-    return key
-
-
-def get_local_cache_key(local_rule_id: str, rule_id: str = None) -> str:
-    key = f"local/{local_rule_id}/"
-    if rule_id:
-        key = f"{key}{rule_id}"
+def get_rules_cache_key(standard: str, version: str, substandard: str = None) -> str:
+    if substandard:
+        key = f"{standard.lower()}/{version}/{substandard.lower()}"
+    else:
+        key = f"{standard.lower()}/{version}"
     return key
 
 
