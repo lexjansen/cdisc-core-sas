@@ -28,10 +28,7 @@
 @param snomed_url - optional - The Base URL of snomed to use. Defaults to snowstorm test instance
 @param rules - optional - Rule core id. ex: CORE-000001. Can be specified multiple times.
 @param local_rules - optional - path to directory containing local rules
-@param local_rules_cache - optional - flag to run a validation using the local rules in the cache (0/1).
-       Must be provided with a local rules id (local_rules_id) to specify the local rules to use
-@param local_rules_id - optional - local rule ID of rules to use from the local rules cache for the validation run.
-       Must be provided with the local_rules_cache flag
+@param custom_standard - optional - flag to run a validation using a custom_standard from the cache (0/1).
 
 **/
 
@@ -62,8 +59,7 @@
   snomed_url = %str(https://snowstorm.snomedtools.org/snowstorm/snomed-ct/),
   rules =,
   local_rules =,
-  local_rules_cache = 0,
-  local_rules_id=
+  custom_standard = 0
   ) / minoperator;
 
   %local
@@ -83,7 +79,7 @@
 
   %* Check for missing parameters;
   %let _Missing =;
-  %let _RequiredParameters = cache_path pool_size log_level report_template standard version output_format output raw_report local_rules_cache;
+  %let _RequiredParameters = cache_path pool_size log_level report_template standard version output_format output raw_report;
   %do i = 1 %to %sysfunc(countw(&_RequiredParameters));
      %let _Parameter = %scan(&_RequiredParameters, &i);
      %if %sysevalf(%superq(&_Parameter)=, boolean) %then %let _Missing = &_Missing &_Parameter;
@@ -169,9 +165,9 @@
     %goto exit_macro;
   %end;
 
-  %* Check local_rules_cache;
-  %if not(&local_rules_cache in (0 1)) %then %do;
-    %put ERR%str(OR): [&sysmacroname] Macro parameter &=local_rules_cache must be 0 or 1.;
+  %* Check custom_standard;
+  %if not(&custom_standard in (0 1)) %then %do;
+    %put ERR%str(OR): [&sysmacroname] Macro parameter &=custom_standard must be 0 or 1.;
     %goto exit_macro;
   %end;
 
@@ -188,7 +184,7 @@
       "&standard", "&version", "&substandard", "&output",  "&output_format",  &raw_report, "&controlled_terminology_package",
       "&define_version", "&define_xml_path", "&validate_xml",
       "&whodrug", "&meddra", "&loinc", "&medrt", "&unii", "&snomed_version", "&snomed_edition", "&snomed_url", 
-      "&rules", "&local_rules", &local_rules_cache, "&local_rules_id");
+      "&rules", "&local_rules", &custom_standard);
     if not missing(message) then putlog "ERR" "OR: " message;
   run;
 

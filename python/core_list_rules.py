@@ -21,8 +21,7 @@ def core_list_rules(output: str, standard: str, version: str, cache_path: str, l
     import pickle
     from cdisc_rules_engine.enums.default_file_paths import DefaultFilePaths
     from cdisc_rules_engine.utilities.utils import (
-        get_rules_cache_key,
-        get_local_cache_key
+        get_rules_cache_key
     )
 
     # Load all rules

@@ -445,27 +445,26 @@ if __name__ == "__main__":
     version()
 
     # update_cache(apikey=os.environ.get("CDISC_LIBRARY_API_KEY"), cache_path='./resources/cache')
-    # update_cache(apikey=os.environ.get("CDISC_LIBRARY_API_KEY"), cache_path='./resources/cache', remove_rules='CUSTOM123')
-    # update_cache(apikey=os.environ.get("CDISC_LIBRARY_API_KEY"), cache_path='./resources/cache', local_rules='./testdata/rules', local_rules_id='CUSTOM123')
+    update_cache(apikey=os.environ.get("CDISC_LIBRARY_API_KEY"), cache_path='./resources/cache', remove_custom_rules='ALL')
+    update_cache(apikey=os.environ.get("CDISC_LIBRARY_API_KEY"), cache_path='./resources/cache', custom_rules_directory='./testdata/rules')
+
+    list_rule_sets(cache_path='./resources/cache', output="./json/core_rule_sets.json")
+    list_rules(cache_path='./resources/cache', output="./json/core_rules_sdtmig_34.json", standard='sdtmig', version='3-4', substandard='')
+    list_rules(cache_path='./resources/cache', output="./json/core_rules_sdtmig_32_custom123.json", standard='sdtmig', version='3-2', substandard='', custom_rules=True)
+    list_rules(cache_path='./resources/cache', output="./json/core_rules_sdtmig_32.json", standard='sdtmig', version='3-2', substandard='')
+    exit()
+
+    list_ct(output="./json/core_ct.json", subsets=[])
+    # list_dataset_metadata(output="./json/core_dataset_metadata.json", dataset_path=['./testdata/sdtm/dm.xpt', './testdata/sdtm/ae.xpt', './testdata/sdtm/ex.xpt', './testdata/sdtm/lb.xpt'])
 
     validate(
         standard='sdtmig',
         version='3-3',
-        cache='./resources/cache',
-        dataset_path=['./testdata/sdtm/dm.xpt', './testdata/sdtm/ae.xpt'],
-        report_template='./resources/templates/report-template.xlsx',
-        output_format=['JSON', 'XLSX'],
-        raw_report=False,
-        output='./reports/' + generate_report_filename(datetime.now().isoformat()),
-        rules = ["CORE-000006", "CORE-000007", "CORE-000012", "CORE-000013", "CORE-000019", "CORE-000266", "CORE-000356"],
+        data='./testdata/sdtm',
         define_xml_path='./testdata/sdtm/define.xml',
         whodrug='./testdata/dictionaries/whodrug',
         meddra='./testdata/dictionaries/meddra',
-        loinc='./testdata/dictionaries/loinc',
-        medrt='./testdata/dictionaries/medrt',
-        unii='./testdata/dictionaries/unii',
-        snomed_version='2024-09-01',
-        snomed_edition = 'SNOMEDCT-US'
+        progress='bar'
     )
 
     validate(
@@ -485,7 +484,29 @@ if __name__ == "__main__":
         medrt='./testdata/dictionaries/medrt',
         unii='./testdata/dictionaries/unii',
         snomed_version='2024-09-01',
-        snomed_edition = 'SNOMEDCT-US'
+        snomed_edition = 'SNOMEDCT-US',
+        progress='bar'
+    )
+
+    validate(
+        standard='sdtmig',
+        version='3-3',
+        cache='./resources/cache',
+        dataset_path=['./testdata/sdtm/dm.xpt', './testdata/sdtm/ae.xpt'],
+        report_template='./resources/templates/report-template.xlsx',
+        output_format=['JSON', 'XLSX'],
+        raw_report=False,
+        output='./reports/' + generate_report_filename(datetime.now().isoformat()),
+        rules = ["CORE-000006", "CORE-000007", "CORE-000012", "CORE-000013", "CORE-000019", "CORE-000266", "CORE-000356"],
+        define_xml_path='./testdata/sdtm/define.xml',
+        whodrug='./testdata/dictionaries/whodrug',
+        meddra='./testdata/dictionaries/meddra',
+        loinc='./testdata/dictionaries/loinc',
+        medrt='./testdata/dictionaries/medrt',
+        unii='./testdata/dictionaries/unii',
+        snomed_version='2024-09-01',
+        snomed_edition = 'SNOMEDCT-US',
+        progress='bar'
     )
 
     validate(
@@ -499,7 +520,7 @@ if __name__ == "__main__":
         output='./reports/' + generate_report_filename(datetime.now().isoformat()) + '_custom',
         rules = [],
         local_rules = './testdata/rules',
-        custom_standard = True,
+        custom_standard = False,
         define_xml_path='./testdata/sdtm/define.xml',
         whodrug='./testdata/dictionaries/whodrug',
         meddra='./testdata/dictionaries/meddra',
@@ -507,17 +528,8 @@ if __name__ == "__main__":
         medrt='./testdata/dictionaries/medrt',
         unii='./testdata/dictionaries/unii',
         snomed_version='2024-09-01',
-        snomed_edition = 'SNOMEDCT-US'
+        snomed_edition = 'SNOMEDCT-US',
+        progress='bar'
     )
-
-    list_rule_sets(output="./json/core_rule_sets.json")
-    list_rules(output="./json/core_rules_sdtmig_34.json", standard='sdtmig', version='3-4', substandard='')
-    # list_rules(output="./json/core_rules_sdtmig_32_custom123.json", standard='sdtmig', version='3-2', substandard='', custom_rules=True, rule_id='CUSTOM123')
-    # list_rules(output="./json/core_rules_sdtmig_32.json", standard='sdtmig', version='3-2', substandard='')
-
-
-    list_ct(output="./json/core_ct.json", subsets=[])
-    list_dataset_metadata(output="./json/core_dataset_metadata.json", dataset_path=['./testdata/sdtm/dm.xpt', './testdata/sdtm/ae.xpt', './testdata/sdtm/ex.xpt', './testdata/sdtm/lb.xpt'])
-
 
     test_validate()

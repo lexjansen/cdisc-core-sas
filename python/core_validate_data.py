@@ -1,7 +1,7 @@
 def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_template, standard, version, substandard,
                        output, output_format, raw_report, controlled_terminology_package, define_version, define_xml_path, validate_xml,
                        whodrug, meddra, loinc, medrt, unii, snomed_version, snomed_edition, snomed_url,
-                       rules, local_rules, local_rules_cache, local_rules_id):
+                       rules, local_rules, custom_standard):
       """Output: message_return_value"""
 
       import os
@@ -76,8 +76,7 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
           define_version: str = '',
           rules: Tuple[str] = [],
           local_rules: str = '',
-          local_rules_cache: bool = False,
-          local_rules_id: str = '',
+          custom_standard: bool = False,
           define_xml_path: str = '',
           validate_xml: str = '',
           whodrug: str ='',
@@ -191,8 +190,7 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
                   external_dictionaries,
                   rules,
                   local_rules,
-                  local_rules_cache,
-                  local_rules_id,
+                  custom_standard,
                   progress,
                   define_xml_path,
                   validate_xml_bool
@@ -226,8 +224,7 @@ def core_validate_data(cache, pool_size, data, dataset_path, log_level, report_t
            snomed_url=snomed_url,
            rules=re.split(';|,', rules),
            local_rules=local_rules,
-           local_rules_cache=local_rules_cache,
-           local_rules_id=local_rules_id,
+           custom_standard=custom_standard,
            define_xml_path=define_xml_path,
            validate_xml=validate_xml
        )

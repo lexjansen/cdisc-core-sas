@@ -1,4 +1,4 @@
-def core_update_cache(apikey, cache_path, local_rules, local_rules_id, remove_rules):
+def core_update_cache(apikey, cache_path, custom_rules_directory, custom_rule, remove_custom_rules, update_custom_rule, custom_standard, remove_custom_standard):
   """Output: """
 
   import os
@@ -27,33 +27,48 @@ def core_update_cache(apikey, cache_path, local_rules, local_rules_id, remove_ru
   def update_cache(
       apikey: str,
       cache_path: str = DefaultFilePaths.CACHE.value,
-      local_rules: str = '',
-      local_rules_id: str = '',
-      remove_rules: str = ''
+      custom_rules_directory: str = '', 
+      custom_rule: str = '', 
+      remove_custom_rules: str = '', 
+      update_custom_rule: str = '', 
+      custom_standard: str = '', 
+      remove_custom_standard: str = ''     
       ):
       cache = CacheServiceFactory(config).get_cache_service()
       library_service = CDISCLibraryService(apikey, cache)
       cache_populator = CachePopulator(
-          cache, library_service, local_rules, local_rules_id, remove_rules, cache_path
+        cache,
+        library_service,
+        custom_rules_directory,
+        custom_rule,
+        remove_custom_rules,
+        update_custom_rule,
+        custom_standard,
+        remove_custom_standard,
+        cache_path,
       )
-      if remove_rules:
-          cache_populator.save_removed_rules_locally()
-          print("Local rules removed from cache")
-      elif local_rules and local_rules_id:
-          cache_populator.save_local_rules_locally()
-          print("Local rules saved to cache")
-      elif not local_rules and not remove_rules:
-          asyncio.run(cache_populator.update_cache())
+      if custom_rule or custom_rules_directory:
+          cache_populator.add_custom_rules()
+      elif remove_custom_rules:
+          cache_populator.remove_custom_rules_from_cache()
+      elif update_custom_rule:
+          cache_populator.update_custom_rule_in_cache()
+      elif custom_standard:
+          cache_populator.add_custom_standard_to_cache()
+      elif remove_custom_standard:
+          cache_populator.remove_custom_standards_from_cache()
       else:
-          raise ValueError(
-              "Must Specify either local_rules_path and local_rules_id, remove_local_rules, or neither"
-          )
+          asyncio.run(cache_populator.update_cache())
+
       print("Cache updated successfully")
 
   update_cache(
       apikey=apikey,
       cache_path=cache_path,
-      local_rules=local_rules,
-      local_rules_id=local_rules_id,
-      remove_rules=remove_rules
+      custom_rules_directory = custom_rules_directory,
+      custom_rule = custom_rule,
+      remove_custom_rules = remove_custom_rules,
+      update_custom_rule = update_custom_rule,
+      custom_standard = custom_standard,
+      remove_custom_standard = remove_custom_standard
       )
