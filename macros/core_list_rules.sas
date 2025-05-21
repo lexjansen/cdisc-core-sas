@@ -4,7 +4,7 @@
 @param standard - optional - CDISC standard to get rules for
 @param version - optional - Standard version to get rules for
 @param cache_path - required - Relative path to cache files containing pre loaded metadata and rules
-@param local_rules - optional - flag to list local rules in the cache (0/1)
+@param custom_rules - optional - flag to list local rules in the cache (0/1)
 @param local_rules_id - optional - local rule id to list from the local rules cache
 
 **/
@@ -13,9 +13,10 @@
   output =, 
   standard =,
   version =, 
+  substandard =,
   cache_path = %sysfunc(sysget(CORE_PATH))/resources/cache,
-  local_rules = 0,
-  local_rules_id =,
+  custom_rules = 0,
+  rule_id =,
   ) / minoperator;
 
   %local
@@ -45,8 +46,8 @@
   %end;
 
   %* Check local_rules;
-  %if not(&local_rules in (0 1)) %then %do;
-    %put ERR%str(OR): [&sysmacroname] Macro parameter &=local_rules must be 0 or 1.;
+  %if not(&custom_rules in (0 1)) %then %do;
+    %put ERR%str(OR): [&sysmacroname] Macro parameter &=custom_rules must be 0 or 1.;
     %goto exit_macro;
   %end;
 
@@ -55,7 +56,7 @@
   %******************************************************************************;
 
   data _null_;
-    call core_list_rules("&output", "&standard", "&version", "&cache_path", &local_rules, "&local_rules_id");
+    call core_list_rules("&output", "&standard", "&version", "&substandard", "&cache_path", &custom_rules, "&rule_id");
   run;
 
   %exit_macro:

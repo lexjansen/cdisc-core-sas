@@ -68,11 +68,11 @@ proc fcmp outlib = macros.core_funcs.python;
     rc = py.call('core_list_dataset_metadata', dataset_path, output);
   endsub;
 
-  subroutine core_list_rules(output $, standard $, version $, cache_path $, local_rules, local_rules_id $);
+  subroutine core_list_rules(output $, standard $, version $, substandard $, cache_path $, custom_rules, rule_id $);
     declare object py(python);
     submit into py("&project_folder/python/core_list_rules.py");
     rc = py.publish();
-    rc = py.call('core_list_rules', output, standard, version, cache_path, local_rules, local_rules_id);
+    rc = py.call('core_list_rules', output, standard, version, substandard, cache_path, custom_rules, rule_id);
   endsub;
 
   subroutine core_list_rule_sets(output $, cache_path $);
@@ -82,7 +82,7 @@ proc fcmp outlib = macros.core_funcs.python;
     rc = py.call('core_list_rule_sets', output, cache_path);
   endsub;
 
-run;
+quit;
 
 libname macros clear;
 

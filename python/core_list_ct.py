@@ -13,6 +13,9 @@ def core_list_ct(subsets, output: str, cache_path: str):
     lib_path = os.path.abspath(os.path.join(__file__, core_path))
     if lib_path not in sys.path: sys.path.append(lib_path)
 
+    os.chdir(core_path)
+    print(f"Current working directory: {os.getcwd()}")
+
     import json
 
     subsets = [item.strip(' ') for item in subsets if item !='']

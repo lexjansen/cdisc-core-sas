@@ -9,13 +9,13 @@
 
 filename rules "&project_folder/json/core_rules_sdtmig-3-2-custom.json";
 
-%core_list_rules(
+%*core_list_rules(
   output =  %sysfunc(pathname(rules)),
   standard = %str(sdtmig),
   version = %str(3-2),
   cache_path = &project_folder/resources/cache,
-  local_rules = 1,
-  local_rules_id = CUSTOM123
+  custom_rules = 1,
+  rule_id = CUSTOM123
 );
 
 proc sql;

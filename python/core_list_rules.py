@@ -1,4 +1,4 @@
-def core_list_rules(output: str, standard: str, version: str, cache_path: str, local_rules: bool, local_rules_id: str):
+def core_list_rules(output: str, standard: str, version: str, substandard: str, cache_path: str, custom_rules: bool, rule_id: str):
     """Output: """
 
     """
@@ -13,9 +13,8 @@ def core_list_rules(output: str, standard: str, version: str, cache_path: str, l
     lib_path = os.path.abspath(os.path.join(__file__, core_path))
     if lib_path not in sys.path: sys.path.append(lib_path)
 
-    current_path = os.getcwd()
-    print(f"Current working directory: {current_path}")
     os.chdir(core_path)
+    print(f"Current working directory: {os.getcwd()}")
 
     import json
     import pickle
@@ -25,18 +24,30 @@ def core_list_rules(output: str, standard: str, version: str, cache_path: str, l
     )
 
     # Load all rules
-    if local_rules:
-        rules_file = DefaultFilePaths.LOCAL_RULES_CACHE_FILE.value
+    if custom_rules:
+        rules_file = DefaultFilePaths.CUSTOM_RULES_CACHE_FILE.value
+        dict_file = DefaultFilePaths.CUSTOM_RULES_DICTIONARY.value
     else:
         rules_file = DefaultFilePaths.RULES_CACHE_FILE.value
+        dict_file = DefaultFilePaths.RULES_DICTIONARY.value
     with open(os.path.join(cache_path, rules_file), "rb") as f:
         rules_data = pickle.load(f)
-    if not local_rules and (standard and version):
-        key_prefix = get_rules_cache_key(standard, version.replace(".", "-"))
-        rules = [rule for key, rule in rules_data.items() if key.startswith(key_prefix)]
-    elif local_rules and local_rules_id:
-        key_prefix = get_local_cache_key(local_rules_id)
-        rules = [rule for key, rule in rules_data.items() if key.startswith(key_prefix)]
+    with open(os.path.join(cache_path, dict_file), "rb") as f:
+        rules_dict = pickle.load(f)
+    rules = []
+    if rule_id:
+        for id in rule_id:
+            if id in rules_data:
+                rules.append(rules_data[id])
+    elif standard and version:
+        key_prefix = get_rules_cache_key(
+            standard, version.replace(".", "-"), substandard
+        )
+        if key_prefix in rules_dict:
+            rule_ids = rules_dict[key_prefix]
+            for rid in rule_ids:
+                if rid in rules_data:
+                    rules.append(rules_data[rid])
     else:
         # Print all rules
         rules = list(rules_data.values())

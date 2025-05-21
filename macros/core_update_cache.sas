@@ -13,12 +13,12 @@
 %macro core_update_cache(
   apikey =,
   cache_path = %sysfunc(sysget(CORE_PATH))/resources/cache,
-  custom_rules_directory = "", 
-  custom_rule = "", 
-  remove_custom_rules = "", 
-  update_custom_rule = "", 
-  custom_standard = "", 
-  remove_custom_standard = ""
+  custom_rules_directory =, 
+  custom_rule =, 
+  remove_custom_rules =, 
+  update_custom_rule =, 
+  custom_standard =, 
+  remove_custom_standard =
   );
 
   %local

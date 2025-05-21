@@ -36,6 +36,9 @@ def core_list_dataset_metadata(dataset_path, output: str):
     lib_path = os.path.abspath(os.path.join(__file__, core_path))
     if lib_path not in sys.path: sys.path.append(lib_path)
 
+    os.chdir(core_path)
+    print(f"Current working directory: {os.getcwd()}")
+
     import json
     from scripts.list_dataset_metadata_handler import list_dataset_metadata_handler
     import re

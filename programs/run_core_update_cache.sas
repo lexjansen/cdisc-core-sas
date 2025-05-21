@@ -13,13 +13,13 @@
   cache_path = &project_folder/resources/cache
   );
 
-%*core_update_cache(
+%core_update_cache(
   /* apikey= <your API key>, */
   cache_path = &project_folder/resources/cache,
   remove_custom_rules = ALL
   );
 
-%*core_update_cache(
+%core_update_cache(
   /* apikey= <your API key>, */
   cache_path = &project_folder/resources/cache,
   custom_rules_directory = &project_folder/testdata/rules
