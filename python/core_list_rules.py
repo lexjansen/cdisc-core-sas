@@ -52,4 +52,4 @@ def core_list_rules(output: str, standard: str, version: str, substandard: str, 
         # Print all rules
         rules = list(rules_data.values())
     with open(output, "w") as f:
-        json.dump(rules, f, indent=4)
+        json.dump(rules, f)

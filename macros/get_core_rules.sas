@@ -1,6 +1,10 @@
 %macro get_core_rules(core_standard=, core_standard_version=, core_substandard=, core_custom_rules=0, core_rule_id=, dsout=metadata.core_rules, json_folder=&project_folder/json);
 
-  filename rules "&json_folder/core_rules_&core_standard.-&core_standard_version..json";
+  %local jsonfile;
+  
+  %let jsonfile = core_rules_&core_standard.-%sysfunc(tranwrd(&core_standard_version, %str(/), %str(-))).json;
+
+  filename rules "&json_folder/&jsonfile";
 
   %core_list_rules(
     output =  %sysfunc(pathname(rules)),
@@ -17,6 +21,7 @@
 
   %* When DSOUT is empty do not create data;
   %if %sysevalf(%superq(dsout)=, boolean) %then %goto exit_macro;
+  %if %sysfunc(exist(jsonfile.standards)) eq 0 %then %goto exit_macro;
 
   data work.standards;
     set jsonfile.standards(drop=ordinal_standards);
@@ -146,7 +151,7 @@
       on (params.ordinal_actions = actions.ordinal_actions)
     order by core_id, core_standard, core_standard_version  
     ;
-  run;
+  quit;
 
   data &dsout;
     set &dsout work._core_rules;

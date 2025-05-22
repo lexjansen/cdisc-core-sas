@@ -450,6 +450,7 @@ if __name__ == "__main__":
 
     list_rule_sets(cache_path='./resources/cache', output="./json/core_rule_sets.json")
     list_rules(cache_path='./resources/cache', output="./json/core_rules_sdtmig_34.json", standard='sdtmig', version='3-4', substandard='')
+    list_rules(cache_path='./resources/cache', output="./json/core_rules_adamig_10.json", standard='adamig', version='1-3', substandard='')
     list_rules(cache_path='./resources/cache', output="./json/core_rules_sdtmig_32_custom123.json", standard='sdtmig', version='3-2', substandard='', custom_rules=True)
     list_rules(cache_path='./resources/cache', output="./json/core_rules_sdtmig_32.json", standard='sdtmig', version='3-2', substandard='')
     exit()

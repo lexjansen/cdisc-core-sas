@@ -47,7 +47,7 @@ ods excel file = "&project_folder/reports/core_rules.xlsx";
 data _null_;
   set metadata.core_rulesets;
   length code $ 1024;
-  if upcase(standard) = "DDF" then
+  if upcase(standard) = "USDM" then
   %* For DDF only get JSON ;
     code = cats('%nrstr(%get_core_rules(core_standard=', lowcase(standard), ', core_standard_version=', version, ', dsout=));');
   else
