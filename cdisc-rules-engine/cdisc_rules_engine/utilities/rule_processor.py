@@ -17,6 +17,7 @@ from cdisc_rules_engine.constants.domains import (
     SUPPLEMENTARY_DOMAINS,
 )
 from cdisc_rules_engine.constants.rule_constants import ALL_KEYWORD
+from cdisc_rules_engine.constants.use_cases import USE_CASE_DOMAINS
 from cdisc_rules_engine.interfaces import ConditionInterface
 from cdisc_rules_engine.models.operation_params import OperationParams
 from cdisc_rules_engine.models.rule_conditions import AllowedConditionsKeys
@@ -232,6 +233,39 @@ class RuleProcessor:
                 is_excluded = True
         return is_included and not is_excluded
 
+    def rule_applies_to_use_case(
+        self,
+        dataset_metadata: SDTMDatasetMetadata,
+        rule: dict,
+        standard: str,
+        standard_substandard: str,
+    ) -> bool:
+        if standard.lower() != "tig":
+            return True
+        use_cases = rule.get("use_case") or []
+        if not use_cases:
+            return True
+        use_cases = [uc.strip() for uc in use_cases.split(",")]
+        substandard = standard_substandard.upper()
+        if substandard not in USE_CASE_DOMAINS:
+            return False
+
+        domain_to_check = dataset_metadata.domain
+        if dataset_metadata.is_supp and dataset_metadata.rdomain:
+            domain_to_check = dataset_metadata.rdomain
+
+        # Handle ADaM datasets with AD prefix
+        if substandard == "ADAM" and domain_to_check.startswith("AD"):
+            return "ANALYSIS" in use_cases
+
+        allowed_domains = set()
+        for use_case in use_cases:
+            if use_case in USE_CASE_DOMAINS[substandard]:
+                allowed_domains.update(USE_CASE_DOMAINS[substandard][use_case])
+        if domain_to_check in allowed_domains:
+            return True
+        return False
+
     def valid_rule_structure(self, rule) -> bool:
         required_keys = ["standards", "core_id"]
         for key in required_keys:
@@ -275,6 +309,7 @@ class RuleProcessor:
 
             # get necessary operation
             operation_params = OperationParams(
+                core_id=rule.get("core_id"),
                 operation_id=operation.get("id"),
                 operation_name=operation.get("operator"),
                 dataframe=dataset_copy,
@@ -335,6 +370,7 @@ class RuleProcessor:
         """
         # check cache
         cache_key = get_operations_cache_key(
+            core_id=operation_params.core_id,
             directory_path=operation_params.directory_path,
             operation_name=operation_params.operation_name,
             domain=operation_params.domain,
@@ -503,12 +539,23 @@ class RuleProcessor:
         rule: dict,
         dataset_metadata: SDTMDatasetMetadata,
         datasets: Iterable[SDTMDatasetMetadata],
+        standard,
+        standard_substandard: str,
     ) -> Tuple[bool, str]:
         """Check if rule is suitable and return reason if not"""
         rule_id = rule.get("core_id", "unknown")
         dataset_name = dataset_metadata.name
         if not self.valid_rule_structure(rule):
             reason = f"Rule skipped - invalid rule structure for rule id={rule_id}"
+            logger.info(f"is_suitable_for_validation. {reason}, result=False")
+            return False, reason
+        if not self.rule_applies_to_use_case(
+            dataset_metadata, rule, standard, standard_substandard
+        ):
+            reason = (
+                f"Rule skipped - doesn't apply to use case for "
+                f"rule id={rule_id}, dataset={dataset_name}"
+            )
             logger.info(f"is_suitable_for_validation. {reason}, result=False")
             return False, reason
         if not self.rule_applies_to_domain(dataset_metadata, rule):
