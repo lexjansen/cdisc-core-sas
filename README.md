@@ -6,7 +6,7 @@ This Proof of Concepts is based on CORE release v0.11.0 (June 12, 2025) and was 
 
 ## Supported python versions
 
-[![Python 3.10](https://img.shields.io/badge/python-3.10-blue.svg)](https://www.python.org/downloads/release/python-3100)
+[![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/downloads/release/python-3120)
 
 ## Installing dependencies
 
