@@ -33,7 +33,7 @@ https://go.documentation.sas.com/doc/en/bicdc/9.4/biasag/n1mquxnfmfu83en1if8icqm
 
  %* MAS_PYPATH and MAS_M2PATH needed to be able to run Python ;
 %* Update to your own locations                              ;
-options set = MAS_PYPATH = "&project_folder/.venv/Scripts/python.exe";
+options set = MAS_PYPATH = "&project_folder/.venv312/Scripts/python.exe";
 options set = MAS_M2PATH = "%sysget(SASROOT)/tkmas/sasmisc/mas2py.py";
 
 options cmplib = macros.core_funcs;
