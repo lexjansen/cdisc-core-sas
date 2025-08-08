@@ -456,7 +456,7 @@
     {
       "properties": {
         "operator": {
-          "const": "is_consistent_across_dataset"
+          "const": "is_inconsistent_across_dataset"
         }
       },
       "required": ["operator", "value"],
@@ -865,6 +865,24 @@
         }
       },
       "required": ["operator", "name"],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "operator": {
+          "const": "is_ordered_subset_of"
+        }
+      },
+      "required": ["operator", "value"],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "operator": {
+          "const": "is_not_ordered_subset_of"
+        }
+      },
+      "required": ["operator", "value"],
       "type": "object"
     }
   ],
