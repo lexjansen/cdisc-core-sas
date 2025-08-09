@@ -411,24 +411,6 @@
     {
       "properties": {
         "operator": {
-          "const": "is_not_valid_reference"
-        }
-      },
-      "required": ["operator", "context"],
-      "type": "object"
-    },
-    {
-      "properties": {
-        "operator": {
-          "const": "is_not_valid_relationship"
-        }
-      },
-      "required": ["operator", "context", "value"],
-      "type": "object"
-    },
-    {
-      "properties": {
-        "operator": {
           "const": "is_ordered_by"
         }
       },
@@ -469,24 +451,6 @@
         }
       },
       "required": ["operator"],
-      "type": "object"
-    },
-    {
-      "properties": {
-        "operator": {
-          "const": "is_valid_reference"
-        }
-      },
-      "required": ["operator", "context"],
-      "type": "object"
-    },
-    {
-      "properties": {
-        "operator": {
-          "const": "is_valid_relationship"
-        }
-      },
-      "required": ["operator", "context", "value"],
       "type": "object"
     },
     {
@@ -843,24 +807,6 @@
     {
       "properties": {
         "operator": {
-          "const": "variable_metadata_equal_to"
-        }
-      },
-      "required": ["operator", "metadata", "value"],
-      "type": "object"
-    },
-    {
-      "properties": {
-        "operator": {
-          "const": "variable_metadata_not_equal_to"
-        }
-      },
-      "required": ["operator", "metadata", "value"],
-      "type": "object"
-    },
-    {
-      "properties": {
-        "operator": {
           "const": "inconsistent_enumerated_columns"
         }
       },
@@ -986,6 +932,12 @@
       ]
     },
     "value_is_literal": {
+      "const": true
+    },
+    "value_is_reference": {
+      "const": true
+    },
+    "type_insensitive": {
       "const": true
     },
     "within": {

@@ -3,6 +3,10 @@
 ## equal_to
 
 Value comparison. Works for both string and number.
+Has optional parameter:
+
+- 'value_is_reference' when true, the value parameter specifies a column name whose content determines which column to compare against dynamically.
+- 'type_insensitive' when true, both values are converted to strings before comparison to handle type mismatches between string and numeric data.
 
 > --OCCUR = N
 
@@ -10,6 +14,16 @@ Value comparison. Works for both string and number.
 - name: --OCCUR
   operator: equal_to
   value: "N"
+```
+
+> IDVARVAL = the column specified in the IDVAR column for each row (type insensitive comparison).
+
+```yaml
+- name: IDVARVAL
+  operator: equal_to
+  value: "IDVAR"
+  value_is_reference: true
+  type_insensitive: true
 ```
 
 > EXDOSE EQ 0
@@ -22,7 +36,7 @@ Value comparison. Works for both string and number.
 
 ## not_equal_to
 
-Complement of `equal_to`
+Complement of `equal_to`. Also has the optional parameters 'value_is_reference' and 'type_insensitive'.
 
 > --OCCUR ^= Y
 
@@ -285,7 +299,7 @@ True if the value in `value` is a case insensitive substring of the value in `na
 
 ```yaml
 - name: "--TOXGR"
-  operator: "contains_case_insentisitve"
+  operator: "contains_case_insensitive"
   value: "grade"
 ```
 
@@ -549,27 +563,6 @@ Check:
       operator: "inconsistent_enumerated_columns"
 ```
 
-## variable_metadata_equal_to
-
-Could be useful, for example, in checking variable permissibility in conjunction with the `variable_library_metadata` operation:
-
-```yaml
-Check:
-  all:
-    - operator: variable_metadata_equal_to
-      value: Exp
-      metadata: $permissibility
-    - operator: not_exists
-Operations:
-  - id: $permissibility
-    operator: variable_library_metadata
-    name: core
-```
-
-## variable_metadata_not_equal_to
-
-Complement of `variable_metadata_equal_to`
-
 # Relationship & Set
 
 ## is_contained_by
@@ -811,92 +804,6 @@ Relationship Integrity Check
 
 Complement of `is_unique_relationship`
 
-## is_valid_relationship
-
-> Records found in the domain referenced by RDOMAIN, where variable in IDVAR = value in IDVARVAL
-
-```yaml
-Scopes:
-  Domains:
-    - RELREC
-Check:
-  all:
-    - name: "IDVAR"
-      operator: is_valid_relationship
-      context: "RDOMAIN"
-      value: "IDVARVAL"
-```
-
-Both is_valid_relationship and is_not_valid relationship can use an optional 'within' argument
-
-```yaml
-Scopes:
-  Domains:
-    - RELREC
-Check:
-  all:
-    - name: "IDVAR"
-      operator: is_valid_relationship
-      context: "RDOMAIN"
-      value: "IDVARVAL"
-```
-
-> Records found in the domain referenced by RDOMAIN, where variable in IDVAR = value in IDVARVAL, scoped within the same USUBJID
-
-## is_not_valid_relationship
-
-Complement of `is_valid_relationship`
-
-Relationship Integrity Check
-
-> No records found in the domain referenced by RDOMAIN, where variable in IDVAR = value in IDVARVAL
-
-```yaml
-Scopes:
-  Domains:
-    - RELREC
-Check:
-  all:
-    - name: "IDVAR"
-      operator: is_not_valid_relationship
-      context: "RDOMAIN"
-      value: "IDVARVAL"
-```
-
-## is_valid_reference
-
-Reference
-
-> IDVAR is a valid reference as specified, given the domain context in RDOMAIN
-
-```yaml
-Scopes:
-  Domains:
-    - RELREC
-Check:
-  all:
-    - name: "IDVAR"
-      operator: is_valid_reference
-      context: "RDOMAIN"
-```
-
-## is_not_valid_reference
-
-Complement of `is_valid_reference`
-
-> IDVAR is an invalid reference as specified, given the domain context in RDOMAIN
-
-```yaml
-Scopes:
-  Domains:
-    - RELREC
-Check:
-  all:
-    - name: "IDVAR"
-      operator: is_not_valid_reference
-      context: "RDOMAIN"
-```
-
 ## empty_within_except_last_row
 
 > SEENDTC is not empty when it is not the last record, grouped by USUBJID, sorted by SESTDTC
@@ -980,11 +887,11 @@ Check:
 
 ## shares_at_least_one_element_with
 
-Will raise an issue if at least one of the values in `name` is the same as one of the values in `value`
+Will raise an issue if at least one of the values in `name` is the same as one of the values in `value`. See [shares_no_elements_with](#shares_no_elements_with).
 
 ## shares_exactly_one_element_with
 
-Will raise an issue if exactly one of the values in `name` is the same as one of the values in `value`
+Will raise an issue if exactly one of the values in `name` is the same as one of the values in `value`. See [shares_no_elements_with](#shares_no_elements_with).
 
 ## shares_no_elements_with
 
@@ -993,15 +900,12 @@ Will raise an issue if the values in `name` do not share any of the values in `v
 > Check if $dataset_variables shares no elements with $timing_variables
 
 ```yaml
-  "Check": {
-    "all": [
-      {
-        "name": "$dataset_variables",
-        "operator": "shares_no_elements_with",
-        "value": "$timing_variables"
-      }
-    ]
-  },
+Rule Type: Dataset Metadata Check # One record per dataset
+Check:
+  - all:
+      name: $dataset_variables
+      operator: shares_no_elements_with
+      value: $timing_variables
 ```
 
 ## has_same_values

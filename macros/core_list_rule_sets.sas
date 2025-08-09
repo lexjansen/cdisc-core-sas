@@ -7,7 +7,8 @@
 
 %macro core_list_rule_sets(
   output =,
-  cache_path = %sysfunc(sysget(CORE_PATH))/resources/cache
+  cache_path = %sysfunc(sysget(CORE_PATH))/resources/cache,
+  custom = 0
   );
 
   %local
@@ -35,12 +36,18 @@
       %goto exit_macro;
     %end;
   %end;
+
+  %* Check custom;
+  %if not(&custom in (0 1)) %then %do;
+    %put ERR%str(OR): [&sysmacroname] Macro parameter &=custom must be 0 or 1.;
+    %goto exit_macro;
+  %end;
   %******************************************************************************;
   %* End of parameter checks                                                    *;
   %******************************************************************************;
 
   data _null_;
-    call core_list_rule_sets("&output", "&cache_path");
+    call core_list_rule_sets("&output", "&cache_path", &custom);
   run;
 
   %exit_macro:

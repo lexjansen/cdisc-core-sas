@@ -8,6 +8,7 @@ from cdisc_rules_engine.constants.permissibility import (
 )
 from abc import abstractmethod
 from typing import List
+import pandas as pd
 
 from cdisc_rules_engine.interfaces import (
     CacheServiceInterface,
@@ -157,8 +158,22 @@ class BaseOperation:
         # filters inputted dataframe on self.param.filter dictionary
         filtered_df = data
         for variable, value in self.params.filter.items():
-            filtered_df = filtered_df[filtered_df[variable] == value]
+            if self._is_wildcard_pattern(value):
+                mask = self._apply_wildcard_filter(filtered_df[variable], value)
+                filtered_df = filtered_df[mask]
+            else:
+                filtered_df = filtered_df[filtered_df[variable] == value]
         return self.evaluation_dataset.__class__(filtered_df)
+
+    def _is_wildcard_pattern(self, value: str) -> bool:
+        if not isinstance(value, str):
+            return False
+        return value.endswith("%")
+
+    def _apply_wildcard_filter(self, series: pd.Series, pattern: str) -> pd.Series:
+        prefix = pattern.rstrip("%")
+        result = series.str.startswith(prefix, na=False)
+        return result
 
     def _rename_grouping_columns(self, data):
         # Renames grouping columns to any corresponding grouping aliases columns
@@ -172,18 +187,51 @@ class BaseOperation:
         )
 
     def _get_grouping_columns(self) -> List[str]:
-        return (
-            self.params.grouping
-            if not self.params.grouping_aliases
-            else [
-                (
-                    self.params.grouping_aliases[i]
-                    if 0 <= i < len(self.params.grouping_aliases)
-                    else v
-                )
-                for i, v in enumerate(self.params.grouping)
-            ]
-        )
+        if any(item.startswith("$") for item in self.params.grouping):
+            return self._expand_operation_results_in_grouping(self.params.grouping)
+        else:
+            return (
+                self.params.grouping
+                if not self.params.grouping_aliases
+                else [
+                    (
+                        self.params.grouping_aliases[i]
+                        if 0 <= i < len(self.params.grouping_aliases)
+                        else v
+                    )
+                    for i, v in enumerate(self.params.grouping)
+                ]
+            )
+
+    def _expand_operation_results_in_grouping(self, grouping_list):
+        expanded = []
+        for item in grouping_list:
+            if item.startswith("$") and item in self.evaluation_dataset.columns:
+                operation_col = self.evaluation_dataset[item]
+                first_val = operation_col.iloc[0]
+                if operation_col.astype(str).nunique() == 1:
+                    if isinstance(first_val, (list, tuple)):
+                        expanded.extend(first_val)
+                    else:
+                        expanded.append(item)
+                else:
+                    expanded.extend(self._collect_values_from_column(operation_col))
+            else:
+                expanded.append(item)
+        return list(dict.fromkeys(expanded))
+
+    def _collect_values_from_column(self, operation_col):
+        seen = []
+        for val in operation_col:
+            if val is not None:
+                if isinstance(val, (list, tuple)):
+                    for v in val:
+                        if v not in seen:
+                            seen.append(v)
+                else:
+                    if val not in seen:
+                        seen.append(val)
+        return seen
 
     def _get_variables_metadata_from_standard(self) -> List[dict]:
         # TODO: Update to handle other standard types: adam, cdash, etc.
@@ -192,17 +240,24 @@ class BaseOperation:
             if ds.unsplit_name == self.params.domain:
                 target_metadata = ds
                 break
-        dataset_class = self.data_service.get_dataset_class(
-            self.evaluation_dataset,
-            self.params.dataset_path,
-            self.params.datasets,
-            target_metadata,
-        )
-
+        if (
+            target_metadata
+            and hasattr(target_metadata, "is_supp")
+            and target_metadata.is_supp
+        ):
+            domain_for_library = "SUPPQUAL"
+        elif target_metadata and "rel" in target_metadata.name.lower():
+            if target_metadata.name.lower().startswith(
+                "ap"
+            ) and target_metadata.name.lower()[2:].startswith("rel"):
+                domain_for_library = target_metadata.name[2:]
+            else:
+                domain_for_library = target_metadata.name
+        else:
+            domain_for_library = self.params.domain
         return sdtm_utilities.get_variables_metadata_from_standard(
-            self.params.domain,
+            domain_for_library,
             self.library_metadata,
-            dataset_class,
         )
 
     def get_allowed_variable_permissibility(self, variable_metadata: dict):

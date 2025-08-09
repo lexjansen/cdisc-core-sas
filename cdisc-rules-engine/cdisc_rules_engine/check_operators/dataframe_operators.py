@@ -1,7 +1,7 @@
 from business_rules.operators import BaseType, type_operator
 from typing import Union, Any, List, Tuple
 from business_rules.fields import FIELD_DATAFRAME
-from business_rules.utils import (
+from cdisc_rules_engine.check_operators.helpers import (
     flatten_list,
     is_valid_date,
     vectorized_is_valid,
@@ -11,8 +11,8 @@ from business_rules.utils import (
     vectorized_is_in,
     vectorized_case_insensitive_is_in,
     apply_regex,
+    vectorized_compare_dates,
 )
-from cdisc_rules_engine.check_operators.helpers import vectorized_compare_dates
 
 from cdisc_rules_engine.constants import NULL_FLAVORS
 from cdisc_rules_engine.utilities.utils import dates_overlap, parse_date
@@ -76,7 +76,6 @@ class DataframeType(BaseType):
     def __init__(self, data):
         self.value: DatasetInterface = data["value"]
         self.column_prefix_map = data.get("column_prefix_map", {})
-        self.relationship_data = data.get("relationship_data", {})
         self.value_level_metadata = data.get("value_level_metadata", [])
         self.column_codelist_map = data.get("column_codelist_map", {})
         self.codelist_term_maps = data.get("codelist_term_maps", [])
@@ -102,7 +101,7 @@ class DataframeType(BaseType):
     def replace_prefix(self, value: str) -> Union[str, Any]:
         if isinstance(value, str):
             for prefix, replacement in self.column_prefix_map.items():
-                if value.startswith(prefix):
+                if value.startswith(prefix) and replacement is not None:
                     return value.replace(prefix, replacement, 1)
         return value
 
@@ -149,7 +148,9 @@ class DataframeType(BaseType):
         target,
         comparator,
         value_is_literal: bool = False,
+        value_is_reference: bool = False,
         case_insensitive: bool = False,
+        type_insensitive: bool = False,
     ) -> bool:
         """
         Equality checks work slightly differently for clinical datasets.
@@ -160,19 +161,31 @@ class DataframeType(BaseType):
         equal_to       Populated   "" or null  False
         equal_to       Populated   Populated   A == B
         """
-        comparison_data = (
-            comparator if comparator not in row or value_is_literal else row[comparator]
-        )
+        if value_is_reference:
+            dynamic_column_name = row[comparator]
+            comparison_data = row[dynamic_column_name]
+        else:
+            comparison_data = (
+                comparator
+                if comparator not in row or value_is_literal
+                else row[comparator]
+            )
         both_null = (comparison_data == "" or comparison_data is None) & (
             row[target] == "" or row[target] is None
         )
         if both_null:
             return False
+        if type_insensitive:
+            target_val = self._custom_str_conversion(row[target])
+            comparison_val = self._custom_str_conversion(comparison_data)
+        else:
+            target_val = row[target]
+            comparison_val = comparison_data
         if case_insensitive:
             target_val = row[target].lower() if row[target] else None
             comparison_val = comparison_data.lower() if comparison_data else None
             return target_val == comparison_val
-        return row[target] == comparison_data
+        return target_val == comparison_val
 
     def _check_inequality(
         self,
@@ -180,7 +193,9 @@ class DataframeType(BaseType):
         target,
         comparator,
         value_is_literal: bool = False,
+        value_is_reference: bool = False,
         case_insensitive: bool = False,
+        type_insensitive: bool = False,
     ) -> bool:
         """
         Equality checks work slightly differently for clinical datasets.
@@ -191,32 +206,53 @@ class DataframeType(BaseType):
         not_equal_to   Populated   "" or null  True
         not_equal_to   Populated   Populated   A != B
         """
-        comparison_data = (
-            comparator if comparator not in row or value_is_literal else row[comparator]
-        )
+        if value_is_reference:
+            dynamic_column_name = row[comparator]
+            comparison_data = row[dynamic_column_name]
+        else:
+            comparison_data = (
+                comparator
+                if comparator not in row or value_is_literal
+                else row[comparator]
+            )
         both_null = (comparison_data == "" or comparison_data is None) & (
             row[target] == "" or row[target] is None
         )
         if both_null:
             return False
+        if type_insensitive:
+            target_val = self._custom_str_conversion(row[target])
+            comparison_val = self._custom_str_conversion(comparison_data)
+        else:
+            target_val = row[target]
+            comparison_val = comparison_data
         if case_insensitive:
             target_val = row[target].lower() if row[target] else None
             comparison_val = comparison_data.lower() if comparison_data else None
             return target_val != comparison_val
-        return row[target] != comparison_data
+        return target_val != comparison_val
 
     @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
     def equal_to(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
         value_is_literal = other_value.get("value_is_literal", False)
+        value_is_reference = other_value.get("value_is_reference", False)
+        type_insensitive = other_value.get("type_insensitive", False)
         comparator = (
             self.replace_prefix(other_value.get("comparator"))
             if not value_is_literal
             else other_value.get("comparator")
         )
         return self.value.apply(
-            lambda row: self._check_equality(row, target, comparator, value_is_literal),
+            lambda row: self._check_equality(
+                row,
+                target,
+                comparator,
+                value_is_literal,
+                value_is_reference,
+                type_insensitive=type_insensitive,
+            ),
             axis=1,
             meta=(None, "bool"),
         ).reset_index(drop=True)
@@ -260,6 +296,8 @@ class DataframeType(BaseType):
     def not_equal_to(self, other_value):
         target = self.replace_prefix(other_value.get("target"))
         value_is_literal = other_value.get("value_is_literal", False)
+        value_is_reference = other_value.get("value_is_reference", False)
+        type_insensitive = other_value.get("type_insensitive", False)
         comparator = (
             self.replace_prefix(other_value.get("comparator"))
             if not value_is_literal
@@ -267,7 +305,12 @@ class DataframeType(BaseType):
         )
         return self.value.apply(
             lambda row: self._check_inequality(
-                row, target, comparator, value_is_literal
+                row,
+                target,
+                comparator,
+                value_is_literal,
+                value_is_reference,
+                type_insensitive=type_insensitive,
             ),
             axis=1,
             meta=(None, "bool"),
@@ -1006,10 +1049,19 @@ class DataframeType(BaseType):
                     grouping_cols.append(col_name)
         df_check = self.value[grouping_cols + [target]].copy()
         df_check = df_check.fillna("_NaN_")
-        results = pd.Series(True, index=df_check.index)
-        for name, group in df_check.groupby(grouping_cols):
-            if group[target].nunique() == 1:
-                results[group.index] = False
+        results = pd.Series(False, index=df_check.index)
+        for name, group in df_check.groupby(grouping_cols, dropna=False):
+            if group[target].nunique() > 1:
+                value_counts = group[target].value_counts()
+                max_count = value_counts.max()
+                # if same amount of inconsistency values, flag all
+                most_common_values = value_counts[value_counts == max_count]
+                if len(most_common_values) > 1:
+                    results[group.index] = True
+                else:
+                    most_common_value = most_common_values.index[0]
+                    minority_rows = group[group[target] != most_common_value]
+                    results[minority_rows.index] = True
         return results
 
     @log_operator_execution
@@ -1069,25 +1121,52 @@ class DataframeType(BaseType):
             comparator = self.replace_all_prefixes(comparator)
         else:
             comparator = self.replace_prefix(comparator)
-        # remove repeating rows
-        df_without_duplicates: DatasetInterface = self.value[
-            [target, comparator]
-        ].drop_duplicates()
-        # we need to check if ANY of the columns (target or comparator) is duplicated
-        duplicated_comparator = df_without_duplicates[comparator].duplicated(keep=False)
-        duplicated_target = df_without_duplicates[target].duplicated(keep=False)
+        df_subset = self.value[[target, comparator]].dropna(how="all")
+        df_without_duplicates = df_subset.drop_duplicates()
+        violated_targets = self._find_relationship_violations(
+            df_without_duplicates, target, comparator
+        )
         result = self.value.convert_to_series([False] * len(self.value))
-        if duplicated_comparator.any():
-            duplicated_comparator_values = set(
-                df_without_duplicates[duplicated_comparator][comparator]
+        if violated_targets:
+            clean_targets = {
+                v for v in violated_targets if pd.notna(v) and v != "" and v is not None
+            }
+            has_null_target = any(
+                pd.isna(v) or v == "" or v is None for v in violated_targets
             )
-            result += self.value[comparator].isin(duplicated_comparator_values)
-        if duplicated_target.any():
-            duplicated_target_values = set(
-                df_without_duplicates[duplicated_target][target]
-            )
-            result += self.value[target].isin(duplicated_target_values)
+            if clean_targets:
+                result = result | self.value[target].isin(clean_targets)
+            if has_null_target:
+                result = result | self.value[target].isna()
         return result
+
+    def _find_relationship_violations(self, df_without_duplicates, target, comparator):
+        """Find all target values that violate one-to-one relationship constraints."""
+        violated_targets = set()
+        for target_val in df_without_duplicates[target].dropna().unique():
+            target_rows = df_without_duplicates[
+                df_without_duplicates[target] == target_val
+            ]
+            comparator_values = target_rows[comparator]
+            unique_comparators = set()
+            for comp_val in comparator_values:
+                if pd.isna(comp_val) or comp_val == "" or comp_val is None:
+                    unique_comparators.add("NULL_PLACEHOLDER")
+                else:
+                    unique_comparators.add(comp_val)
+            if len(unique_comparators) > 1:
+                violated_targets.add(target_val)
+        for comp_val in df_without_duplicates[comparator].dropna().unique():
+            if comp_val == "" or pd.isna(comp_val):
+                continue
+            comp_rows = df_without_duplicates[
+                df_without_duplicates[comparator] == comp_val
+            ]
+            target_values = comp_rows[target]
+            if len(target_values) > 1:
+                for t_val in target_values:
+                    violated_targets.add(t_val)
+        return violated_targets
 
     @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
@@ -1107,52 +1186,6 @@ class DataframeType(BaseType):
     @type_operator(FIELD_DATAFRAME)
     def is_not_ordered_set(self, other_value):
         return not self.is_ordered_set(other_value)
-
-    @log_operator_execution
-    @type_operator(FIELD_DATAFRAME)
-    def is_valid_reference(self, other_value):
-        target = self.replace_prefix(other_value.get("target"))
-        context = self.replace_prefix(other_value.get("context"))
-        if context:
-            results = self.value.apply(
-                lambda row: row[target] in self.relationship_data.get(row[context], {}),
-                axis=1,
-            )
-        else:
-            results = self.value[target].isin(self.relationship_data)
-        return results
-
-    @log_operator_execution
-    @type_operator(FIELD_DATAFRAME)
-    def is_not_valid_reference(self, other_value):
-        return ~self.is_valid_reference(other_value)
-
-    @log_operator_execution
-    @type_operator(FIELD_DATAFRAME)
-    def is_valid_relationship(self, other_value):
-        target = self.replace_prefix(other_value.get("target"))
-        value_column = self.replace_prefix(other_value.get("comparator"))
-        context = self.replace_prefix(other_value.get("context"))
-        within_column = self.replace_prefix(other_value.get("within"))
-        if not within_column or within_column not in self.value.columns:
-            return self.value.apply(
-                lambda row: self.detect_reference(row, value_column, target, context),
-                axis=1,
-            )
-        results = pd.Series(False, index=self.value.index)
-        results = self.value.apply(
-            lambda row: self.detect_reference(
-                row, value_column, target, context, row[within_column]
-            ),
-            axis=1,
-        )
-
-        return results
-
-    @log_operator_execution
-    @type_operator(FIELD_DATAFRAME)
-    def is_not_valid_relationship(self, other_value):
-        return ~self.is_valid_relationship(other_value)
 
     @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
@@ -1280,33 +1313,6 @@ class DataframeType(BaseType):
     @type_operator(FIELD_DATAFRAME)
     def not_present_on_multiple_rows_within(self, other_value: dict):
         return ~self.present_on_multiple_rows_within(other_value)
-
-    def detect_reference(
-        self, row, value_column, target_column, context=None, within_value=None
-    ):
-        if within_value is not None:
-            if context:
-                target_data = (
-                    self.relationship_data.get(within_value, {})
-                    .get(row[context], {})
-                    .get(row[target_column], pd.Series([]).values)
-                )
-            else:
-                target_data = self.relationship_data.get(within_value, {}).get(
-                    row[target_column], pd.Series([]).values
-                )
-        else:
-            if context:
-                target_data = self.relationship_data.get(row[context], {}).get(
-                    row[target_column], pd.Series([]).values
-                )
-            else:
-                target_data = self.relationship_data.get(
-                    row[target_column], pd.Series([]).values
-                )
-        value = str(row[value_column])
-        target_data_str = [str(x) for x in target_data]
-        return value in target_data_str
 
     @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
@@ -1549,36 +1555,6 @@ class DataframeType(BaseType):
 
     @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
-    def variable_metadata_equal_to(self, other_value: dict):
-        """
-        Validates the metadata for variables,
-        provided in the metadata column, is equal to
-        the comparator.
-        Ex.
-        target: STUDYID
-        comparator: "Exp"
-        metadata_column: {"STUDYID": "Req", "DOMAIN": "Req"}
-        result: False
-        """
-        target = self.replace_prefix(other_value.get("target"))
-        comparator = other_value.get(
-            "comparator"
-        )  # Assumes the comparator is a value not a column
-        metadata_column = self.replace_prefix(other_value.get("metadata"))
-        result = np.where(
-            vectorized_get_dict_key(self.value[metadata_column], target) == comparator,
-            True,
-            False,
-        )
-        return self.value.convert_to_series(result)
-
-    @log_operator_execution
-    @type_operator(FIELD_DATAFRAME)
-    def variable_metadata_not_equal_to(self, other_value: dict):
-        return ~self.variable_metadata_equal_to(other_value)
-
-    @log_operator_execution
-    @type_operator(FIELD_DATAFRAME)
     def shares_at_least_one_element_with(self, other_value: dict):
         target: str = self.replace_prefix(other_value.get("target"))
         comparator: str = self.replace_prefix(other_value.get("comparator"))
@@ -1596,7 +1572,7 @@ class DataframeType(BaseType):
             )
             return bool(target_set.intersection(comparator_set))
 
-        return self.value.apply(check_shared_elements, axis=1).any()
+        return self.value.apply(check_shared_elements, axis=1)
 
     @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
@@ -1617,7 +1593,7 @@ class DataframeType(BaseType):
             )
             return len(target_set.intersection(comparator_set)) == 1
 
-        return self.value.apply(check_exactly_one_shared_element, axis=1).any()
+        return self.value.apply(check_exactly_one_shared_element, axis=1)
 
     @log_operator_execution
     @type_operator(FIELD_DATAFRAME)
@@ -1638,7 +1614,7 @@ class DataframeType(BaseType):
             )
             return len(target_set.intersection(comparator_set)) == 0
 
-        return self.value.apply(check_no_shared_elements, axis=1).all()
+        return self.value.apply(check_no_shared_elements, axis=1)
 
     @log_operator_execution
     @type_operator(FIELD_DATAFRAME)

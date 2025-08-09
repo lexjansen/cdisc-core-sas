@@ -137,6 +137,7 @@ def get_library_metadata_from_cache(args) -> LibraryMetadataContainer:  # noqa
         variables_metadata=variables_metadata,
         ct_package_metadata=ct_package_data,
         published_ct_packages=published_ct_packages,
+        cache_path=args.cache,
     )
 
 
@@ -253,7 +254,7 @@ def load_specified_rules(
         if rule in standard_rules:
             valid_rule_ids.add(rule)
         else:
-            engine_logger.error(
+            raise ValueError(
                 f"The rule specified '{rule}' is not in the standard {standard} and version {version}"
             )
     rules = []
@@ -366,7 +367,7 @@ def load_rules_from_local(args) -> List[dict]:
     else:
         engine_logger.info(
             "No rules specified with -r rules flag. "
-            "Validating with all rules in local directory"
+            "Validating with rules in local directory"
         )
         keys = None
 

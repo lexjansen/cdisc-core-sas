@@ -14,6 +14,7 @@ from cdisc_rules_engine.operations.library_column_order import LibraryColumnOrde
 from cdisc_rules_engine.operations.library_model_column_order import (
     LibraryModelColumnOrder,
 )
+from cdisc_rules_engine.operations.map import Map
 from cdisc_rules_engine.operations.parent_library_model_column_order import (
     ParentLibraryModelColumnOrder,
 )
@@ -55,9 +56,6 @@ from cdisc_rules_engine.operations.whodrug_references_validator import (
 from cdisc_rules_engine.operations.whodrug_hierarchy_validator import (
     WhodrugHierarchyValidator,
 )
-from cdisc_rules_engine.operations.variable_library_metadata import (
-    VariableLibraryMetadata,
-)
 from cdisc_rules_engine.operations.variable_count import VariableCount
 from cdisc_rules_engine.operations.variable_is_null import VariableIsNull
 from cdisc_rules_engine.operations.required_variables import RequiredVariables
@@ -82,6 +80,9 @@ from cdisc_rules_engine.operations.codelist_extensible import CodelistExtensible
 from cdisc_rules_engine.operations.define_xml_extensible_codelists import (
     DefineCodelists,
 )
+from cdisc_rules_engine.operations.get_dataset_filtered_variables import (
+    GetDatasetFilteredVariables,
+)
 
 
 class OperationsFactory(FactoryInterface):
@@ -99,6 +100,7 @@ class OperationsFactory(FactoryInterface):
         "get_model_column_order": LibraryModelColumnOrder,
         "get_model_filtered_variables": LibraryModelVariablesFilter,
         "get_parent_model_column_order": ParentLibraryModelColumnOrder,
+        "map": Map,
         "max": Maximum,
         "max_date": MaxDate,
         "mean": Mean,
@@ -112,7 +114,6 @@ class OperationsFactory(FactoryInterface):
         "valid_meddra_code_term_pairs": MedDRACodeTermPairsValidator,
         "variable_exists": VariableExists,
         "variable_names": VariableNames,
-        "variable_library_metadata": VariableLibraryMetadata,
         "variable_value_count": VariableValueCount,
         "variable_count": VariableCount,
         "variable_is_null": VariableIsNull,
@@ -130,6 +131,7 @@ class OperationsFactory(FactoryInterface):
         "valid_external_dictionary_code": ValidExternalDictionaryCode,
         "valid_external_dictionary_code_term_pair": ValidExternalDictionaryCodeTermPair,
         "valid_define_external_dictionary_version": DefineDictionaryVersionValidator,
+        "get_dataset_filtered_variables": GetDatasetFilteredVariables,
     }
 
     @classmethod

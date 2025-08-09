@@ -246,10 +246,14 @@ def list_rules(
 
 def list_rule_sets(
     output: str,
-    cache_path: str = DefaultFilePaths.CACHE.value
+    cache_path: str = DefaultFilePaths.CACHE.value,
+    custom: bool = False
     ):
     """Lists all standards and versions for which rules are available."""
-    rules_file = DefaultFilePaths.RULES_DICTIONARY.value
+    if custom:
+        rules_file = DefaultFilePaths.CUSTOM_RULES_DICTIONARY.value
+    else:
+        rules_file = DefaultFilePaths.RULES_DICTIONARY.value
     with open(os.path.join(cache_path, rules_file), "rb") as f:
         rules_data = pickle.load(f)
 

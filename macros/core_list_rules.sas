@@ -45,7 +45,7 @@
     %end;  
   %end;
 
-  %* Check local_rules;
+  %* Check custom_rules;
   %if not(&custom_rules in (0 1)) %then %do;
     %put ERR%str(OR): [&sysmacroname] Macro parameter &=custom_rules must be 0 or 1.;
     %goto exit_macro;

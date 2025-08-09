@@ -26,13 +26,15 @@ class VariablesMetadataWithDefineAndLibraryDatasetBuilder(BaseDatasetBuilder):
         define_variable_has_no_data,
         define_variable_order_number,
         define_variable_has_codelist,
-        define_variable_codelist_coded_values
-        define_variable_mandatory
+        define_variable_codelist_coded_values,
+        define_variable_codelist_coded_codes,
+        define_variable_mandatory,
         library_variable_name,
         library_variable_label,
         library_variable_data_type,
         library_variable_role,
         library_variable_core,
+        library_variable_ccode,
         library_variable_order_number
         """
         variable_metadata: List[dict] = self.get_define_xml_variables_metadata()

@@ -320,11 +320,11 @@ To obtain an api key, please follow the instructions found here: <https://wiki.c
   python core.py update-cache --update_custom_rule 'path/to/updated_rule.yaml'
   ```
 
-- **Remove custom rules**: Use the `--remove_custom_rules` or `-rcr` flag to remove rules from the cache. Can be a single rule ID, a comma-separated list of IDs, or 'ALL' to remove all custom rules:
+- **Remove custom rules**: Use the `--remove_custom_rules` or `-rcr` flag to remove rules from the cache. Can be a single rule ID, a comma-separated list of IDs, or ALL to remove all custom rules:
   ```bash
   python core.py update-cache --remove_custom_rules 'RULE_ID'
   python core.py update-cache --remove_custom_rules 'RULE_ID1,RULE_ID2,RULE_ID3'
-  python core.py update-cache --remove_custom_rules 'ALL'
+  python core.py update-cache --remove_custom_rules ALL
   ```
 
 ## List Rules
@@ -363,6 +363,19 @@ To obtain an api key, please follow the instructions found here: <https://wiki.c
 ```bash
 python core.py list-rule-sets
 ```
+
+To list custom standards and versions instead:
+
+```bash
+python core.py list-rule-sets --custom
+# or using the short form:
+python core.py list-rule-sets -o
+```
+
+**Options:**
+
+- `-c, --cache_path` - Relative path to cache files containing pre-loaded metadata and rules
+- `-o, --custom` - Flag to list all custom standards and versions in the cache instead of CDISC standards & rules
 
 **- list-ct** - list ct packages available in the cache
 
@@ -451,3 +464,41 @@ When submitting an issue, please include:
 - Steps to reproduce the issue (for bugs)
 - Your operating system and environment details
 - Any relevant logs or error messages
+
+# Setting DATASET_SIZE_THRESHOLD for Large Datasets
+
+The CDISC Rules Engine respects the `DATASET_SIZE_THRESHOLD` environment variable to determine when to use Dask for large dataset processing. Setting this to 0 coerces Dask usage over Pandas. A .env in the root directory with this variable set will cause this implementation coercion for the CLI. This can also be done with the executable releases via multiple methods:
+
+## Quick Commands
+
+### Windows (Command Prompt)
+
+```cmd
+set DATASET_SIZE_THRESHOLD=0 && core.exe validate -rest -of -config -commands
+```
+
+### Windows (PowerShell)
+
+```powershell
+$env:DATASET_SIZE_THRESHOLD=0; core.exe validate -rest -of -config -commands
+```
+
+### Linux/Mac (Bash)
+
+```bash
+DATASET_SIZE_THRESHOLD=0 ./core -rest -of -config -commands
+```
+
+## .env File (Alternative)
+
+Create a `.env` file in the root directory of the release containing:
+
+```
+DATASET_SIZE_THRESHOLD=0
+```
+
+Then run normally: `core.exe validate -rest -of -config -commands
+
+---
+
+**Note:** Setting `DATASET_SIZE_THRESHOLD=0` tells the engine to use Dask processing for all datasets regardless of size, size threshold defaults to 1/4 of available RAM so datasets larger than this will use Dask

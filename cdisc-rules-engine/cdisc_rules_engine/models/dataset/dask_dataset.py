@@ -18,6 +18,8 @@ class DaskDataset(PandasDataset):
         columns=None,
         length=None,
     ):
+        if isinstance(data, pd.DataFrame):
+            data = dd.from_pandas(data, npartitions=DEFAULT_NUM_PARTITIONS)
         self._data = data
         self.length = length
         if columns and self._data.empty:
@@ -358,7 +360,18 @@ class DaskDataset(PandasDataset):
             return self.__class__(result)
 
     def to_dict(self, **kwargs) -> dict:
-        return list(self._data.map_partitions(lambda x: x.to_dict(orient="records")))
+        orient = kwargs.get("orient", "dict")
+        if orient == "records":
+            reset_df = self._data.reset_index(drop=True)
+            all_partitions = list(
+                reset_df.map_partitions(lambda x: x.to_dict(orient="records"))
+            )
+            flattened = []
+            for partition in all_partitions:
+                flattened.extend(partition)
+            return flattened
+        else:
+            return self._data.compute().to_dict(**kwargs)
 
     def items(self, **kwargs):
         computed_df = self._data.compute()

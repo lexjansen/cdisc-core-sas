@@ -75,11 +75,11 @@ proc fcmp outlib = macros.core_funcs.python;
     rc = py.call('core_list_rules', output, standard, version, substandard, cache_path, custom_rules, rule_id);
   endsub;
 
-  subroutine core_list_rule_sets(output $, cache_path $);
+  subroutine core_list_rule_sets(output $, cache_path $, custom);
     declare object py(python);
     submit into py("&project_folder/python/core_list_rule_sets.py");
     rc = py.publish();
-    rc = py.call('core_list_rule_sets', output, cache_path);
+    rc = py.call('core_list_rule_sets', output, cache_path, custom);
   endsub;
 
 quit;

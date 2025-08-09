@@ -9,7 +9,7 @@
           "const": "codelist_extensible"
         }
       },
-      "required": ["id", "operator", "codelist"],
+      "required": ["id", "operator"],
       "type": "object"
     },
     {
@@ -18,7 +18,7 @@
           "const": "codelist_terms"
         }
       },
-      "required": ["id", "operator", "codelists", "level", "returntype"],
+      "required": ["id", "operator"],
       "type": "object"
     },
     {
@@ -145,10 +145,26 @@
     {
       "properties": {
         "operator": {
+          "const": "get_dataset_filtered_variables"
+        }
+      },
+      "required": ["id", "operator", "key_name", "key_value"],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "operator": {
           "const": "label_referenced_variable_metadata"
         }
       },
       "required": ["id", "operator", "name"],
+      "type": "object"
+    },
+    {
+      "properties": {
+        "operator": { "const": "map" }
+      },
+      "required": ["id", "operator", "map"],
       "type": "object"
     },
     {
@@ -355,15 +371,6 @@
     },
     {
       "properties": {
-        "operator": {
-          "const": "variable_library_metadata"
-        }
-      },
-      "required": ["id", "operator", "name"],
-      "type": "object"
-    },
-    {
-      "properties": {
         "operator": { "const": "variable_names" }
       },
       "required": ["id", "operator"],
@@ -398,6 +405,9 @@
     "codelist": {
       "type": "string"
     },
+    "codelist_code": {
+      "type": "string"
+    },
     "codelists": {
       "items": {
         "type": "string"
@@ -407,25 +417,26 @@
     "ct_attribute": {
       "type": "string"
     },
+    "ct_package_type": {
+      "type": "string",
+      "enum": [
+        "ADAM",
+        "CDASH",
+        "COA",
+        "DDF",
+        "DEFINE-XML",
+        "GLOSSARY",
+        "MRCT",
+        "PROTOCOL",
+        "QRS",
+        "QS-FT",
+        "SDTM",
+        "SEND",
+        "TMF"
+      ]
+    },
     "ct_package_types": {
-      "items": {
-        "type": "string",
-        "enum": [
-          "ADAM",
-          "CDASH",
-          "COA",
-          "DDF",
-          "DEFINE-XML",
-          "GLOSSARY",
-          "MRCT",
-          "PROTOCOL",
-          "QRS",
-          "QS-FT",
-          "SDTM",
-          "SEND",
-          "TMF"
-        ]
-      },
+      "items": { "$ref": "Operations.json#/properties/ct_package_type" },
       "type": "array"
     },
     "ct_packages": {
@@ -454,15 +465,21 @@
       "enum": ["meddra"]
     },
     "filter": { "type": "object" },
+    "filter_key": {
+      "type": "string"
+    },
+    "filter_value": {
+      "type": "string"
+    },
     "group": {
       "items": {
-        "$ref": "CORE-base.json#/$defs/VariableName"
+        "$ref": "CORE-base.json#/$defs/VariableReference"
       },
       "type": "array"
     },
     "group_aliases": {
       "items": {
-        "$ref": "CORE-base.json#/$defs/VariableName"
+        "$ref": "CORE-base.json#/$defs/VariableReference"
       },
       "type": "array"
     },
@@ -490,14 +507,33 @@
       "type": "string",
       "enum": ["codelist", "term"]
     },
-    "returntype": {
-      "type": "string",
-      "enum": ["code", "value"]
+    "map": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "output": { "type": "string" }
+        },
+        "required": ["output"]
+      }
     },
     "name": {
       "type": "string"
     },
     "operator": {
+      "type": "string"
+    },
+    "returntype": {
+      "type": "string",
+      "enum": ["code", "value"]
+    },
+    "term_value": {
+      "type": "string"
+    },
+    "term_code": {
+      "type": "string"
+    },
+    "version": {
       "type": "string"
     }
   },
