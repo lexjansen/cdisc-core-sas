@@ -9,7 +9,7 @@
   output =,
   cache_path = %sysfunc(sysget(CORE_PATH))/resources/cache,
   custom = 0
-  );
+  ) / minoperator;
 
   %local
     _Missing;

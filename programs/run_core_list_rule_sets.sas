@@ -32,8 +32,11 @@ proc sort data = metadata.core_rulesets;
 run;
 
 libname jsonfile clear;
-filename rulesetc "&project_folder/json/core_rule_sets.json";
-libname jsonfile json fileref=rulesetc;
+filename rulesets clear;
+
+/*
+
+filename rulesetc "&project_folder/json/core_rule_sets_custom.json";
 
 %core_list_rule_sets(
   output =  %sysfunc(pathname(rulesetc)),
@@ -58,7 +61,8 @@ proc sort data = metadata.core_rulesets_custom;
   by standard version;
 run;
 
-libname metadata clear;
-filename rulesets clear;
-filename rulesetc clear;
 libname jsonfile clear;
+filename rulesetc clear;
+*/
+
+libname metadata clear;
