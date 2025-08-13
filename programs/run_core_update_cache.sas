@@ -24,3 +24,16 @@
   cache_path = &project_folder/resources/cache,
   custom_rules_directory = &project_folder/testdata/rules
   );
+
+%core_update_cache(
+  /* apikey= <your API key>, */
+  cache_path = &project_folder/resources/cache,
+  remove_custom_standard = "mycustom/1-0"
+  );
+
+%core_update_cache(
+  /* apikey= <your API key>, */
+  cache_path = &project_folder/resources/cache,
+  custom_standard = &project_folder/testdata/rules/custom_standard.json
+  );
+

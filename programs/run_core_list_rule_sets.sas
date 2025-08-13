@@ -34,8 +34,8 @@ run;
 libname jsonfile clear;
 filename rulesets clear;
 
-/*
 
+/* Custom rules */
 filename rulesetc "&project_folder/json/core_rule_sets_custom.json";
 
 %core_list_rule_sets(
@@ -63,6 +63,6 @@ run;
 
 libname jsonfile clear;
 filename rulesetc clear;
-*/
+
 
 libname metadata clear;

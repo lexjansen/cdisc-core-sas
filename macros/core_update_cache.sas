@@ -49,6 +49,10 @@
   %* End of parameter checks                                                    *;
   %******************************************************************************;
 
+  %if %sysevalf(%superq(remove_custom_standard)=, boolean) eq 0 %then %do;
+    %let remove_custom_standard = %sysfunc(dequote(&remove_custom_standard));
+  %end;
+
   data _null_;
     call core_update_cache("&apikey", "&cache_path", 
                            "&custom_rules_directory", "&custom_rule", "&remove_custom_rules", "&update_custom_rule", 

@@ -4,7 +4,7 @@
 Authorities:
   - Organization: CDISC
     Standards:
-      - Name: SDTMIG
+      - Name: mycustom
         References:
           - Citations:
               - Cited Guidance:
@@ -27,7 +27,7 @@ Authorities:
               Id: CG0272
               Version: "2"
             Version: "2.0"
-        Version: "3.3"
+        Version: "1.0"
 Check:
   any:
     - all:
@@ -38,7 +38,7 @@ Check:
           operator: equal_to
           value: HEIGHT
 Core:
-  Id: "LEX-0002"
+  Id: "CUSTOM-002"
   Status: Draft
   Version: "1"
 Description: In accordance to the Inclusion/Exclusion criteria, Raise an error if

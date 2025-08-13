@@ -45,7 +45,7 @@ Check:
           operator: equal_to
           value: F
 Core:
-  Id: "LEX-0001"
+  Id: "CUSTOM-001"
   Status: Draft
   Version: "1"
 Description: In accordance to the Inclusion/Exclusion criteria, Raise an error if

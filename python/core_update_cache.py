@@ -15,6 +15,8 @@ def core_update_cache(apikey, cache_path, custom_rules_directory, custom_rule, r
     if not apikey:
       apikey = os.environ["CDISC_LIBRARY_API_KEY"]
 
+    from typing import Tuple
+    import re
     import asyncio
     from cdisc_rules_engine.config import config
 
@@ -31,8 +33,11 @@ def core_update_cache(apikey, cache_path, custom_rules_directory, custom_rule, r
         remove_custom_rules: str = '', 
         update_custom_rule: str = '', 
         custom_standard: str = '', 
-        remove_custom_standard: str = ''     
+        remove_custom_standard: Tuple[str] = []     
         ):
+          
+        remove_custom_standard = [item.strip(' ') for item in remove_custom_standard if item !='']
+          
         cache = CacheServiceFactory(config).get_cache_service()
         library_service = CDISCLibraryService(apikey, cache)
         cache_populator = CachePopulator(
@@ -69,5 +74,5 @@ def core_update_cache(apikey, cache_path, custom_rules_directory, custom_rule, r
         remove_custom_rules = remove_custom_rules,
         update_custom_rule = update_custom_rule,
         custom_standard = custom_standard,
-        remove_custom_standard = remove_custom_standard
+        remove_custom_standard = re.split(';|,', remove_custom_standard)
         )
