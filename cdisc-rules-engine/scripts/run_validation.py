@@ -37,6 +37,7 @@ from cdisc_rules_engine.utilities.utils import (
     get_model_details_cache_key_from_ig,
     get_standard_details_cache_key,
     get_variable_codelist_map_cache_key,
+    set_max_errors_per_rule,
 )
 from scripts.script_utils import (
     fill_cache_with_dictionaries,
@@ -76,12 +77,14 @@ def validate_single_rule(
         rule["conditions"]
     )
     max_dataset_size = max(datasets, key=lambda x: x.file_size).file_size
+    max_errors_per_rule, per_dataset_flag = set_max_errors_per_rule(args)
     # call rule engine
     engine = RulesEngine(
         cache=cache,
         standard=args.standard,
         standard_version=args.version.replace(".", "-"),
         standard_substandard=args.substandard,
+        use_case=args.use_case,
         external_dictionaries=args.external_dictionaries,
         ct_packages=args.controlled_terminology_package,
         define_xml_path=args.define_xml_path,
@@ -89,6 +92,10 @@ def validate_single_rule(
         max_dataset_size=max_dataset_size,
         dataset_paths=args.dataset_paths,
         validate_xml=args.validate_xml,
+        jsonata_custom_functions=args.jsonata_custom_functions,
+        max_errors_per_rule=max_errors_per_rule,
+        errors_per_dataset_flag=per_dataset_flag,
+        encoding=args.encoding,
     )
     results = engine.validate_single_rule(rule, datasets)
     results = list(itertools.chain(*results.values()))
@@ -123,79 +130,103 @@ def run_validation(args: Validation_args):
     CacheManager.register("InMemoryCacheService", InMemoryCacheService)
     manager = CacheManager()
     manager.start()
-    shared_cache = get_cache_service(manager)
-    engine_logger.info(f"Populating cache, cache path: {args.cache}")
-    rules = get_rules(args)
-    library_metadata: LibraryMetadataContainer = get_library_metadata_from_cache(args)
-    max_dataset_size = get_max_dataset_size(args.dataset_paths)
-    standard = args.standard
-    standard_version = args.version.replace(".", "-")
-    standard_substandard = args.substandard
-    data_service = DataServiceFactory(
-        config,
-        shared_cache,
-        max_dataset_size=max_dataset_size,
-        standard=standard,
-        standard_version=standard_version,
-        standard_substandard=standard_substandard,
-        library_metadata=library_metadata,
-    ).get_data_service(args.dataset_paths)
-    # install dictionaries if needed
-    dictionary_versions = fill_cache_with_dictionaries(shared_cache, args, data_service)
-    large_dataset_validation: bool = (
-        data_service.dataset_implementation != PandasDataset
-    )
-    datasets = data_service.get_datasets()
     created_files = []
-    if large_dataset_validation and data_service.standard != "usdm":
-        # convert all files to parquet temp files
-        engine_logger.warning(
-            "Large datasets must use parquet format, converting all datasets to parquet"
+    try:
+        created_files = []
+        shared_cache = get_cache_service(manager)
+        engine_logger.info(f"Populating cache, cache path: {args.cache}")
+        rules, skipped_rule_ids = get_rules(args)
+        library_metadata: LibraryMetadataContainer = get_library_metadata_from_cache(
+            args
         )
-        for dataset in datasets:
-            file_path = dataset.full_path
-            if file_path.endswith(".parquet"):
-                continue
-            num_rows, new_file = data_service.to_parquet(file_path)
-            created_files.append(new_file)
-            dataset.full_path = new_file
-            dataset.record_count = num_rows
-            dataset.original_path = file_path
-    engine_logger.info(f"Running {len(rules)} rules against {len(datasets)} datasets")
-    start = time.time()
-    results = []
-    # instantiate logger in each child process to maintain log level
-    initializer = partial(
-        initialize_logger, engine_logger.disabled, engine_logger._logger.level
-    )
-    # run each rule in a separate process
-    with Pool(args.pool_size, initializer=initializer) as pool:
-        validation_results: Iterable[RuleValidationResult] = pool.imap_unordered(
-            partial(
-                validate_single_rule, shared_cache, datasets, args, library_metadata
-            ),
-            rules,
+        max_dataset_size = get_max_dataset_size(args.dataset_paths)
+        standard = args.standard
+        standard_version = args.version.replace(".", "-")
+        standard_substandard = args.substandard
+        data_service = DataServiceFactory(
+            config,
+            shared_cache,
+            max_dataset_size=max_dataset_size,
+            standard=standard,
+            standard_version=standard_version,
+            standard_substandard=standard_substandard,
+            library_metadata=library_metadata,
+            encoding=args.encoding,
+        ).get_data_service(args.dataset_paths)
+        # install dictionaries if needed
+        dictionary_versions = fill_cache_with_dictionaries(
+            shared_cache, args, data_service
         )
-        progress_handler: Callable = get_progress_displayer(args)
-        results = progress_handler(rules, validation_results, results)
+        large_dataset_validation: bool = (
+            data_service.dataset_implementation != PandasDataset
+        )
+        datasets = data_service.get_datasets()
+        if large_dataset_validation and data_service.standard != "usdm":
+            # convert all files to parquet temp files
+            engine_logger.warning(
+                "Large datasets must use parquet format, converting all datasets to parquet"
+            )
+            for dataset in datasets:
+                file_path = dataset.full_path
+                if file_path.endswith(".parquet"):
+                    continue
+                num_rows, new_file = data_service.to_parquet(file_path)
+                created_files.append(new_file)
+                dataset.full_path = new_file
+                dataset.record_count = num_rows
+                dataset.original_path = file_path
+        engine_logger.info(
+            f"Running {len(rules)} rules against {len(datasets)} datasets"
+        )
+        start = time.time()
+        results = []
+        # instantiate logger in each child process to maintain log level
+        initializer = partial(
+            initialize_logger, engine_logger.disabled, engine_logger._logger.level
+        )
+        # run each rule in a separate process
+        with Pool(args.pool_size, initializer=initializer) as pool:
+            validation_results: Iterable[RuleValidationResult] = pool.imap_unordered(
+                partial(
+                    validate_single_rule, shared_cache, datasets, args, library_metadata
+                ),
+                rules,
+            )
+            progress_handler: Callable = get_progress_displayer(args)
+            results = progress_handler(rules, validation_results, results)
 
-    # build all desired reports
-    end = time.time()
-    elapsed_time = end - start
-    reporting_factory = ReportFactory(
-        datasets, results, elapsed_time, args, data_service
-    )
-    reporting_services: List[BaseReport] = reporting_factory.get_report_services()
-    for reporting_service in reporting_services:
-        reporting_service.write_report(
-            define_xml_path=args.define_xml_path,
-            dictionary_versions=dictionary_versions,
+        for skipped_rule_id, message in skipped_rule_ids or []:
+            engine_logger.info(message)
+            results.append(
+                RuleValidationResult.from_skipped_rule(skipped_rule_id, message)
+            )
+
+        # build all desired reports
+        end = time.time()
+        elapsed_time = end - start
+        engine_logger.info("Done Rule execution, creating reports")
+        reporting_factory = ReportFactory(
+            datasets, results, elapsed_time, args, data_service, dictionary_versions
         )
-    print(f"Output: {args.output}")
-    engine_logger.info("Cleaning up intermediate files")
-    for file in created_files:
-        engine_logger.info(f"Deleting file {file}")
-        os.remove(file)
+        reporting_services: List[BaseReport] = reporting_factory.get_report_services()
+        output_files = []
+        for reporting_service in reporting_services:
+            reporting_service.write_report()
+            output_files.append(reporting_service._output_name)
+        if len(output_files) == 1:
+            print(f"Output: {output_files[0]}")
+        else:
+            print(f"Output: {', '.join(output_files)}")
+    finally:
+        if created_files:
+            engine_logger.info(" Report generated, Cleaning up intermediate files")
+            for file in created_files:
+                try:
+                    engine_logger.info(f"Deleting file {file}")
+                    os.remove(file)
+                except Exception as e:
+                    engine_logger.warning(f"Failed to delete {file}: {e}")
+        manager.shutdown()
 
 
 def run_single_rule_validation(
@@ -206,6 +237,7 @@ def run_single_rule_validation(
     standard: str = None,
     standard_version: str = "",
     standard_substandard: str = None,
+    use_case: str = None,
     codelists=[],
 ) -> dict:
     datasets = [DummyDataset(dataset_data) for dataset_data in datasets]
@@ -262,6 +294,7 @@ def run_single_rule_validation(
         standard=standard,
         standard_version=standard_version,
         standard_substandard=standard_substandard,
+        use_case=use_case,
         library_metadata=library_metadata,
     )
     engine.rule_processor = RuleProcessor(data_service, cache, library_metadata)

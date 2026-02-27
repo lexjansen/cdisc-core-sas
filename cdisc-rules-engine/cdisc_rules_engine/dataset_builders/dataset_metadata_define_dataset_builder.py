@@ -1,6 +1,5 @@
 from cdisc_rules_engine.services import logger
 from cdisc_rules_engine.dataset_builders.base_dataset_builder import BaseDatasetBuilder
-import os
 import numpy as np
 
 
@@ -16,6 +15,9 @@ class DatasetMetadataDefineDatasetBuilder(BaseDatasetBuilder):
         dataset_name - Name of the dataset
         dataset_label - Label for the dataset
         dataset_domain - Domain of the dataset
+        dataset_columns - List of columns in the dataset
+        is_ap - Whether the domain is an AP domain
+        ap_suffix - The 2-character suffix from AP domains
 
         Columns from Define XML:
         define_dataset_name - dataset name from define_xml
@@ -27,12 +29,11 @@ class DatasetMetadataDefineDatasetBuilder(BaseDatasetBuilder):
         define_dataset_is_non_standard - whether a dataset is a standard
         define_dataset_variables - dataset variables
         define_dataset_key_sequence - dataset key sequence
-
-        ...,
+        define_dataset_has_no_data
         """
         # 1. Build define xml dataframe
         define_df = self._get_define_xml_dataframe()
-        # )
+
         # 2. Build dataset dataframe
         dataset_df = self._get_dataset_dataframe()
         if define_df.empty or dataset_df.empty:
@@ -46,20 +47,11 @@ class DatasetMetadataDefineDatasetBuilder(BaseDatasetBuilder):
             right_on=["define_dataset_name", "define_dataset_location"],
             how="outer",
         )
+
         # 4. Remove NaN
         merged._data = merged._data.astype(object).replace({np.nan: None})
-        # 5. remove unused rows, replace rows with target row
-        merged_cleaned = merged.dropna(subset=["dataset_name"])
-        dataset_filename = (
-            os.path.basename(self.dataset_metadata.full_path).lower()
-            if self.dataset_metadata.full_path
-            else None
-        )
-        matching_row = merged_cleaned[
-            merged_cleaned["dataset_location"].str.lower() == dataset_filename
-        ]
-        for column in merged.columns:
-            merged[column] = matching_row[column].iloc[0]
+
+        # 5. Return all rows (one per dataset)
         return merged
 
     def _get_define_xml_dataframe(self):
@@ -71,12 +63,24 @@ class DatasetMetadataDefineDatasetBuilder(BaseDatasetBuilder):
             "define_dataset_class",
             "define_dataset_structure",
             "define_dataset_is_non_standard",
+            "define_dataset_has_no_data",
         ]
         define_metadata = self.get_define_metadata()
         if not define_metadata:
             logger.info(f"No define_metadata is provided for {__name__}.")
             return self.dataset_implementation(columns=define_col_order)
         return self.dataset_implementation.from_records(define_metadata)
+
+    def _ensure_required_columns(self, dataset_df, dataset_col_order):
+        if "dataset_size" not in dataset_df.columns:
+            dataset_df["dataset_size"] = None
+        if "is_ap" not in dataset_df.columns:
+            dataset_df["is_ap"] = False
+        if "dataset_columns" not in dataset_df.columns:
+            dataset_df["dataset_columns"] = None
+        if "ap_suffix" not in dataset_df.columns:
+            dataset_df["ap_suffix"] = ""
+        return self.dataset_implementation(dataset_df[dataset_col_order])
 
     def _get_dataset_dataframe(self):
         dataset_col_order = [
@@ -85,6 +89,9 @@ class DatasetMetadataDefineDatasetBuilder(BaseDatasetBuilder):
             "dataset_name",
             "dataset_label",
             "dataset_domain",
+            "dataset_columns",
+            "is_ap",
+            "ap_suffix",
         ]
 
         if len(self.datasets) == 0:
@@ -93,20 +100,28 @@ class DatasetMetadataDefineDatasetBuilder(BaseDatasetBuilder):
         else:
             datasets = self.dataset_implementation()
             for dataset in self.datasets:
+                ds_metadata = None
                 try:
                     ds_metadata = self.data_service.get_dataset_metadata(
-                        dataset.filename
+                        dataset_name=dataset.filename
                     )
-                    ds_metadata.data["dataset_domain"] = dataset.domain
+                    ds_metadata.data["dataset_domain"] = getattr(
+                        dataset, "domain", None
+                    )
+                    if dataset.first_record:
+                        ds_metadata.data["dataset_columns"] = [
+                            list(dataset.first_record.keys())
+                        ]
+                    else:
+                        ds_metadata.data["dataset_columns"] = [[]]
                 except Exception as e:
                     logger.trace(e)
                     logger.error(f"Error: {e}. Error message: {str(e)}")
-                datasets.data = (
-                    ds_metadata.data
-                    if datasets.data.empty
-                    else datasets.data.append(ds_metadata.data)
-                )
-
+                if ds_metadata:
+                    if datasets.data.empty:
+                        datasets.data = ds_metadata.data.copy()
+                    else:
+                        datasets.data = datasets.concat(ds_metadata).data
             if datasets.data.empty or len(datasets.data) == 0:
                 dataset_df = self.dataset_implementation(columns=dataset_col_order)
                 logger.info(f"No datasets metadata is provided for {__name__}.")
@@ -114,10 +129,9 @@ class DatasetMetadataDefineDatasetBuilder(BaseDatasetBuilder):
                 data_col_mapping = {
                     "filename": "dataset_location",
                     "label": "dataset_label",
-                    "domain": "dataset_name",
                 }
                 dataset_df = datasets.rename(columns=data_col_mapping)
-                if "dataset_size" not in dataset_df.columns:
-                    dataset_df["dataset_size"] = None
-                dataset_df = self.dataset_implementation(dataset_df[dataset_col_order])
+                dataset_df = self._ensure_required_columns(
+                    dataset_df, dataset_col_order
+                )
         return dataset_df

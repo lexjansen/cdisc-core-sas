@@ -1,18 +1,21 @@
 from datetime import datetime
 from io import IOBase
-from json import load
 from typing import List, Optional, Iterable, Sequence
 
 import os
 import pandas as pd
-
+import tempfile
 from cdisc_rules_engine.dummy_models.dummy_dataset import DummyDataset
-from cdisc_rules_engine.exceptions.custom_exceptions import DatasetNotFoundError
+from cdisc_rules_engine.exceptions.custom_exceptions import (
+    DatasetNotFoundError,
+)
 from cdisc_rules_engine.interfaces import CacheServiceInterface, ConfigInterface
 from cdisc_rules_engine.models.sdtm_dataset_metadata import SDTMDatasetMetadata
 from cdisc_rules_engine.models.dataset_types import DatasetTypes
 from cdisc_rules_engine.services.data_readers import DataReaderFactory
+from cdisc_rules_engine.services.data_readers.json_reader import JSONReader
 from cdisc_rules_engine.services.data_services import BaseDataService
+from cdisc_rules_engine.constants import DEFAULT_ENCODING
 from cdisc_rules_engine.models.dataset import PandasDataset
 
 
@@ -40,7 +43,12 @@ class DummyDataService(BaseDataService):
     ):
         return cls(
             cache_service=cache_service,
-            reader_factory=DataReaderFactory(),
+            reader_factory=DataReaderFactory(
+                dataset_implementation=kwargs.get(
+                    "dataset_implementation", PandasDataset
+                ),
+                encoding=kwargs.get("encoding"),
+            ),
             config=config,
             **kwargs,
         )
@@ -154,25 +162,42 @@ class DummyDataService(BaseDataService):
         return metadata_to_return
 
     def to_parquet(self, file_path: str) -> str:
-        return ""
+        """
+        Save the dataset with full_path == file_path to a parquet file.
+        Returns the number of rows and the path to the saved parquet file, or (0, "") if not found.
+        """
+        for dataset in self.data:
+            if hasattr(dataset, "full_path") and dataset.full_path == file_path:
+                # Convert the DummyDataset's data (assumed to be a DataFrame or dict-like) to a pandas DataFrame
+                if hasattr(dataset, "data"):
+                    df = pd.DataFrame(dataset.data)
+                else:
+                    # fallback: try to convert the whole object to dict
+                    df = pd.DataFrame([dataset.__dict__])
+                temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=".parquet")
+                df.to_parquet(temp_file.name)
+                return len(df.index), temp_file.name
+        return 0, ""
 
     def get_datasets(self) -> Iterable[SDTMDatasetMetadata]:
         return self.data
 
     @staticmethod
-    def get_data(dataset_paths: Sequence[str]):
-        with open(dataset_paths[0]) as fp:
-            json = load(fp)
-            return [DummyDataset(data) for data in json.get("datasets", [])]
+    def get_data(dataset_paths: Sequence[str], encoding: str = DEFAULT_ENCODING):
+        json = JSONReader(encoding=encoding or DEFAULT_ENCODING).from_file(
+            dataset_paths[0]
+        )
+        return [DummyDataset(data) for data in json.get("datasets", [])]
 
     @staticmethod
-    def is_valid_data(dataset_paths: Sequence[str]):
+    def is_valid_data(dataset_paths: Sequence[str], encoding: str = DEFAULT_ENCODING):
         if (
             dataset_paths
             and len(dataset_paths) == 1
             and dataset_paths[0].lower().endswith(".json")
         ):
-            with open(dataset_paths[0]) as fp:
-                json = load(fp)
-                return "datasets" in json
+            json = JSONReader(encoding=encoding or DEFAULT_ENCODING).from_file(
+                dataset_paths[0]
+            )
+            return "datasets" in json
         return False

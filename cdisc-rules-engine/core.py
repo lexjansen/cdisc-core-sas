@@ -1,50 +1,101 @@
+#!/usr/bin/env python3
+"""
+CLI entrypoint for the CDISC Rules Engine.
+"""
+
 import asyncio
+import codecs
 import json
 import logging
 import os
 import pickle
+import sys
 import tempfile
 from datetime import datetime
 from multiprocessing import freeze_support
-from typing import Tuple
+from pathlib import Path
 
 import click
-from pathlib import Path
+from dotenv import load_dotenv
+
 from cdisc_rules_engine.config import config
+from cdisc_rules_engine.enums.dataformat_types import DataFormatTypes
 from cdisc_rules_engine.enums.default_file_paths import DefaultFilePaths
 from cdisc_rules_engine.enums.progress_parameter_options import ProgressParameterOptions
 from cdisc_rules_engine.enums.report_types import ReportTypes
-from cdisc_rules_engine.enums.dataformat_types import DataFormatTypes
+from cdisc_rules_engine.models.external_dictionaries_container import (
+    DictionaryTypes,
+    ExternalDictionariesContainer,
+)
 from cdisc_rules_engine.models.validation_args import Validation_args
-from scripts.run_validation import run_validation
 from cdisc_rules_engine.services.cache.cache_populator_service import CachePopulator
 from cdisc_rules_engine.services.cache.cache_service_factory import CacheServiceFactory
 from cdisc_rules_engine.services.cdisc_library_service import CDISCLibraryService
-from cdisc_rules_engine.models.external_dictionaries_container import (
-    ExternalDictionariesContainer,
-    DictionaryTypes,
-)
 from cdisc_rules_engine.utilities.utils import (
     generate_report_filename,
     get_rules_cache_key,
+    validate_dataset_files_exist,
 )
+from cdisc_rules_engine.constants import VALIDATION_FORMATS_MESSAGE, DEFAULT_ENCODING
 from scripts.list_dataset_metadata_handler import list_dataset_metadata_handler
+from scripts.run_validation import run_validation
 from version import __version__
 
+DEFAULT_CACHE_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), DefaultFilePaths.CACHE.value
+)
 
-def valid_data_file(data_path: list) -> Tuple[list, set]:
-    allowed_formats = [format.value for format in DataFormatTypes]
+
+def validate_encoding(ctx, param, value):
+    if value is None:
+        return DEFAULT_ENCODING
+    try:
+        codecs.lookup(value)
+        return value
+    except LookupError:
+        raise click.BadParameter(
+            f"Invalid encoding '{value}'. Please provide a valid encoding name "
+            f"(e.g., utf-8, utf-16, utf-32, cp1252, latin-1)."
+        )
+
+
+def valid_data_file(data_path: list) -> tuple[list, set]:
+    allowed_formats = [
+        DataFormatTypes.XPT.value,
+        DataFormatTypes.JSON.value,
+        DataFormatTypes.NDJSON.value,
+        DataFormatTypes.XLSX.value,
+    ]
     found_formats = set()
     file_list = []
+    ignored_files = []
+
     for file in data_path:
         file_extension = os.path.splitext(file)[1][1:].upper()
         if file_extension in allowed_formats:
             found_formats.add(file_extension)
             file_list.append(file)
-    if len(found_formats) > 1:
-        return [], found_formats
-    elif len(found_formats) == 1:
+        elif file_extension:
+            ignored_files.append(os.path.basename(file))
+
+    if ignored_files:
+        logger = logging.getLogger("validator")
+        logger.warning(
+            f"Ignoring {len(ignored_files)} file(s) with unsupported formats: {', '.join(ignored_files[:5])}"
+            + ("..." if len(ignored_files) > 5 else "")
+        )
+
+    if DataFormatTypes.XLSX.value in found_formats:
+        if len(found_formats) > 1:
+            return [], found_formats
+        elif len(file_list) > 1:
+            return [], found_formats
+        else:
+            return file_list, found_formats
+    if len(found_formats) >= 1:
         return file_list, found_formats
+    else:
+        return [], set()
 
 
 @click.group()
@@ -52,11 +103,91 @@ def cli():
     pass
 
 
+def _validate_data_directory(
+    data: str, logger, filetype: str = None
+) -> tuple[list, set]:
+    """Validate data directory and return dataset paths and found formats."""
+    # Added filetype argument to filter files by extension if provided
+    if filetype:
+        pattern = f"*.{filetype}"
+        dataset_paths, found_formats = valid_data_file(
+            [str(p) for p in Path(data).rglob(pattern) if p.is_file()]
+        )
+    else:
+        dataset_paths, found_formats = valid_data_file(
+            [str(p) for p in Path(data).rglob("*") if p.is_file()]
+        )
+
+    if DataFormatTypes.XLSX.value in found_formats and len(found_formats) > 1:
+        logger.error(
+            f"Argument --data contains XLSX files mixed with other formats ({', '.join(found_formats)}).\n"
+            f"Excel format (XLSX) validation only supports single files.\n"
+            f"Please provide either a single XLSX file or use other supported formats: "
+            f"{VALIDATION_FORMATS_MESSAGE}"
+        )
+        return [], set()
+
+    if not dataset_paths:
+        if DataFormatTypes.XLSX.value in found_formats and len(found_formats) == 1:
+            logger.error(
+                f"Multiple XLSX files found in directory: {data}\n"
+                f"Excel format (XLSX) validation only supports single files.\n"
+                f"Please provide either a single XLSX file or use other supported formats: "
+                f"{VALIDATION_FORMATS_MESSAGE}"
+            )
+        else:
+            logger.error(
+                f"No valid dataset files found in directory: {data}\n"
+                f"Supported formats: {VALIDATION_FORMATS_MESSAGE}\n"
+                f"Please ensure your directory contains files in one of these formats."
+            )
+        return [], set()
+
+    return dataset_paths, found_formats
+
+
+def _validate_dataset_paths(dataset_path: tuple[str], logger) -> tuple[list, set]:
+    """Validate dataset paths and return dataset paths and found formats."""
+    dataset_paths, found_formats = valid_data_file([dp for dp in dataset_path])
+
+    if DataFormatTypes.XLSX.value in found_formats and len(found_formats) > 1:
+        logger.error(
+            f"Argument --dataset-path contains XLSX files mixed with other formats ({', '.join(found_formats)}).\n"
+            f"Excel format (XLSX) validation only supports single files.\n"
+            f"Please provide either a single XLSX file or use other supported formats: "
+            f"{VALIDATION_FORMATS_MESSAGE}"
+        )
+        return [], set()
+
+    if not dataset_paths:
+        if DataFormatTypes.XLSX.value in found_formats and len(found_formats) == 1:
+            logger.error(
+                f"Multiple XLSX files provided.\n"
+                f"Excel format (XLSX) validation only supports single files.\n"
+                f"Please provide either a single XLSX file or use other supported formats: "
+                f"{VALIDATION_FORMATS_MESSAGE}"
+            )
+        else:
+            logger.error(
+                f"No valid dataset files provided.\n"
+                f"Supported formats: {VALIDATION_FORMATS_MESSAGE}\n"
+                f"Please ensure your files are in one of these formats."
+            )
+        return [], set()
+
+    return dataset_paths, found_formats
+
+
+def _validate_no_arguments(logger) -> None:
+    """Validate that at least one dataset argument is provided."""
+    logger.error("You must pass one of the following arguments: --dataset-path, --data")
+
+
 @click.command()
 @click.option(
     "-ca",
     "--cache",
-    default=DefaultFilePaths.CACHE.value,
+    default=DEFAULT_CACHE_PATH,
     help="Relative path to cache files containing pre loaded metadata and rules",
 )
 @click.option(
@@ -70,14 +201,21 @@ def cli():
     "-d",
     "--data",
     required=False,
-    help="Path to directory containing data files",
+    help=f"Path to directory containing data files ({VALIDATION_FORMATS_MESSAGE})",
+)
+@click.option(
+    "-ft",
+    "--filetype",
+    default=None,
+    required=False,
+    help="File extension to use for input files in the data directory (e.g., 'json', 'xpt', 'xlsx', 'ndjson')",
 )
 @click.option(
     "-dp",
     "--dataset-path",
     required=False,
     multiple=True,
-    help="Absolute path to dataset file",
+    help=f"Absolute path to dataset file ({VALIDATION_FORMATS_MESSAGE})",
 )
 @click.option(
     "-l",
@@ -89,7 +227,6 @@ def cli():
 @click.option(
     "-rt",
     "--report-template",
-    default=DefaultFilePaths.EXCEL_TEMPLATE_FILE.value,
     help="File path of report template to use for excel output",
 )
 @click.option(
@@ -110,7 +247,19 @@ def cli():
     "-ss",
     "--substandard",
     default=None,
-    help="CDISC Substandard to validate against",
+    type=click.Choice(["sdtm", "send", "adam", "cdash"], case_sensitive=False),
+    help="CDISC Substandard to validate against. Any of SDTM, SEND, ADaM, CDASH",
+)
+@click.option(
+    "-uc",
+    "--use-case",
+    required=False,
+    default=None,
+    type=click.Choice(["INDH", "PROD", "NONCLIN", "ANALYSIS"], case_sensitive=True),
+    help=(
+        "CDISC TIG Use Case for scoping a TIG Validation."
+        "Any of INDH, PROD, NONCLIN, or ANALYSIS."
+    ),
 )
 @click.option(
     "-ct",
@@ -132,7 +281,7 @@ def cli():
     "--output-format",
     multiple=True,
     default=[ReportTypes.XLSX.value],
-    type=click.Choice(ReportTypes.values(), case_sensitive=False),
+    type=click.Choice(list(ReportTypes.values()), case_sensitive=False),
     help="Output file format",
 )
 @click.option(
@@ -168,28 +317,35 @@ def cli():
     "--rules",
     "-r",
     multiple=True,
-    help="specify rule core ID ex. CORE-000001. Can be specified multiple times",
+    help="Specify rule core ID ex. CORE-000001. Can be specified multiple times",
 )
 @click.option(
-    "--local_rules",
+    "--exclude-rules",
+    "-er",
+    multiple=True,
+    help="Specify rule core ID to exclude, ex. CORE-000001. Can be specified multiple times",
+)
+@click.option(
+    "--local-rules",
     "-lr",
     required=False,
     type=click.Path(exists=True, readable=True, resolve_path=True),
-    help="path to directory containing local rules.",
+    help="Path to directory containing local rules.",
+    multiple=True,
 )
 @click.option(
-    "--custom_standard",
+    "--custom-standard",
     "-cs",
     required=False,
     is_flag=True,
     default=False,
-    help=("flag to run a validation using a custom_standard from the cache"),
+    help=("Flag to run a validation using a custom standard from the cache"),
 )
 @click.option(
     "-p",
     "--progress",
     default=ProgressParameterOptions.BAR.value,
-    type=click.Choice(ProgressParameterOptions.values()),
+    type=click.Choice(list(ProgressParameterOptions.values())),
     help=(
         "Defines how to display the validation progress. "
         'By default a progress bar like "[████████████████████████████--------]   78%"'
@@ -203,21 +359,69 @@ def cli():
     default="y",
     help="Enable XML validation (default 'y' to enable, otherwise disable)",
 )
+@click.option(
+    "-jcf",
+    "--jsonata-custom-functions",
+    default=[],
+    multiple=True,
+    required=False,
+    type=(
+        str,
+        click.Path(exists=True, file_okay=False, readable=True, resolve_path=True),
+    ),
+    help="Variable Name and Path to directory containing a set of custom JSONata functions.",
+)
+@click.option(
+    "-mr",
+    "--max-report-rows",
+    type=int,
+    default=None,
+    required=False,
+    help="Maximum number of rows per report sheet.",
+)
+@click.option(
+    "-me",
+    "--max-errors-per-rule",
+    type=(int, bool),
+    default=(0, False),
+    required=False,
+    help=(
+        "Maximum number of errors per rule. "
+        "Usage: -me <limit> <per_dataset_flag>. "
+        "Example: -me 100 true. "
+        "If per_dataset_flag is false (default), applies cumulative limit across datasets. "
+        "If true, limits reported issues per dataset per rule."
+    ),
+)
+@click.option(
+    "-e",
+    "--encoding",
+    default=DEFAULT_ENCODING,
+    required=False,
+    callback=validate_encoding,
+    help=(
+        f"File encoding for reading datasets. "
+        f"Defaults to {DEFAULT_ENCODING}. "
+        f"Supported encodings: utf-8, utf-16, utf-32, cp1252, latin-1, etc."
+    ),
+)
 @click.pass_context
-def validate(
+def validate(  # noqa
     ctx,
     cache: str,
     pool_size: int,
     data: str,
-    dataset_path: Tuple[str],
+    filetype: str,
+    dataset_path: tuple[str],
     log_level: str,
     report_template: str,
     standard: str,
     version: str,
     substandard: str,
-    controlled_terminology_package: Tuple[str],
+    use_case: str,
+    controlled_terminology_package: tuple[str],
     output: str,
-    output_format: Tuple[str],
+    output_format: tuple[str],
     raw_report: bool,
     define_version: str,
     whodrug: str,
@@ -228,12 +432,17 @@ def validate(
     snomed_version: str,
     snomed_edition: str,
     snomed_url: str,
-    rules: Tuple[str],
+    rules: tuple[str],
+    exclude_rules: tuple[str],
     local_rules: str,
     custom_standard: bool,
     progress: str,
     define_xml_path: str,
     validate_xml: str,
+    jsonata_custom_functions: tuple[()] | tuple[tuple[str, str], ...],
+    max_report_rows: int,
+    max_errors_per_rule: tuple[int, bool],
+    encoding: str,
 ):
     """
     Validate data using CDISC Rules Engine
@@ -245,16 +454,31 @@ def validate(
 
     # Validate conditional options
     logger = logging.getLogger("validator")
+    load_dotenv()
+    validate_dataset_files_exist(dataset_path, logger, ctx)
+
+    if not custom_standard:
+        standard = standard.lower()
 
     if raw_report is True:
         if not (len(output_format) == 1 and output_format[0] == ReportTypes.JSON.value):
             logger.error(
                 "Flag --raw-report can be used only when --output-format is JSON"
             )
-            ctx.exit()
+            ctx.exit(2)
+
+    if exclude_rules and rules:
+        logger.error("Cannot use both --rules and --exclude-rules flags together.")
+        ctx.exit(2)
 
     cache_path: str = os.path.join(os.path.dirname(__file__), cache)
 
+    if standard == "tig":
+        if not substandard or not use_case:
+            logger.error(
+                "Standard 'tig' requires both --substandard and --use-case to be specified."
+            )
+            ctx.exit(2)
     # Construct ExternalDictionariesContainer:
     external_dictionaries = ExternalDictionariesContainer(
         {
@@ -270,33 +494,23 @@ def validate(
             },
         }
     )
+    # Validate dataset arguments
     if data:
         if dataset_path:
             logger.error(
                 "Argument --dataset-path cannot be used together with argument --data"
             )
-            ctx.exit()
-        dataset_paths, found_formats = valid_data_file(
-            [str(Path(data).joinpath(fn)) for fn in os.listdir(data)]
-        )
-        if len(found_formats) > 1:
-            logger.error(
-                f"Argument --data contains more than one allowed file format ({', '.join(found_formats)})."  # noqa: E501
-            )
-            ctx.exit()
+            ctx.exit(2)
+        dataset_paths, found_formats = _validate_data_directory(data, logger, filetype)
+        if not dataset_paths:
+            ctx.exit(2)
     elif dataset_path:
-        dataset_paths, found_formats = valid_data_file([dp for dp in dataset_path])
-        if len(found_formats) > 1:
-            logger.error(
-                f"Argument --dataset_path contains more than one allowed file format ({', '.join(found_formats)})."  # noqa: E501
-            )
-            ctx.exit()
+        dataset_paths, found_formats = _validate_dataset_paths(dataset_path, logger)
+        if not dataset_paths:
+            ctx.exit(2)
     else:
-        logger.error(
-            "You must pass one of the following arguments: --dataset-path, --data"
-        )
-        # no need to define dataset_paths here, the program execution will stop
-        ctx.exit()
+        _validate_no_arguments(logger)
+        ctx.exit(2)
     validate_xml_bool = True if validate_xml.lower() in ("y", "yes") else False
     run_validation(
         Validation_args(
@@ -308,18 +522,24 @@ def validate(
             standard,
             version,
             substandard,
-            set(controlled_terminology_package),  # avoiding duplicates
+            use_case,
+            set(controlled_terminology_package),
             output,
-            set(output_format),  # avoiding duplicates
+            set(output_format),
             raw_report,
             define_version,
             external_dictionaries,
             rules,
+            exclude_rules,
             local_rules,
             custom_standard,
             progress,
             define_xml_path,
             validate_xml_bool,
+            jsonata_custom_functions,
+            max_report_rows,
+            max_errors_per_rule,
+            encoding,
         )
     )
 
@@ -327,8 +547,8 @@ def validate(
 @click.command()
 @click.option(
     "-c",
-    "--cache_path",
-    default=DefaultFilePaths.CACHE.value,
+    "--cache-path",
+    default=DEFAULT_CACHE_PATH,
     help="Relative path to cache files containing pre loaded metadata and rules",
 )
 @click.option(
@@ -339,11 +559,12 @@ def validate(
         "Can be provided in the environment "
         "variable CDISC_LIBRARY_API_KEY"
     ),
-    required=True,
+    required=False,
+    default=None,
 )
 @click.option(
     "-crd",
-    "--custom_rules_directory",
+    "--custom-rules-directory",
     help=(
         "Relative path to directory containing local rules in yaml or JSON formats"
         "to be added to the cache. "
@@ -351,7 +572,7 @@ def validate(
 )
 @click.option(
     "-cr",
-    "--custom_rule",
+    "--custom-rule",
     multiple=True,
     help=(
         "Relative path to rule file in yaml or JSON formats"
@@ -360,7 +581,7 @@ def validate(
 )
 @click.option(
     "-rcr",
-    "--remove_custom_rules",
+    "--remove-custom-rules",
     help=(
         "Remove rules from the cache. Can be a single rule ID, a comma-separated list of IDs, "
         "or 'ALL' to remove all custom rules."
@@ -368,7 +589,7 @@ def validate(
 )
 @click.option(
     "-ucr",
-    "--update_custom_rule",
+    "--update-custom-rule",
     help=(
         "Relative path to rule file in yaml or JSON formats"
         "Rule will be updated in cache with this file. "
@@ -376,16 +597,21 @@ def validate(
 )
 @click.option(
     "-cs",
-    "--custom_standard",
+    "--custom-standard",
     help=(
         "Relative path to JSON file containing custom standard details."
         "Will update the standard if it already exists."
     ),
 )
 @click.option(
+    "-cse",
+    "--custom-standard-encoding",
+    help="Encoding for custom standard details. ",
+)
+@click.option(
     "-rcs",
-    "--remove_custom_standard",
-    help=("removes a custom standard and version from the cache. "),
+    "--remove-custom-standard",
+    help="Removes a custom standard and version from the cache. ",
     multiple=True,
 )
 @click.pass_context
@@ -398,10 +624,14 @@ def update_cache(
     remove_custom_rules: str,
     update_custom_rule: str,
     custom_standard: str,
+    custom_standard_encoding: str,
     remove_custom_standard: str,
 ):
     cache = CacheServiceFactory(config).get_cache_service()
-    library_service = CDISCLibraryService(apikey, cache)
+    # CDISC library service should log failed requests instead of failing the
+    # cache update process
+    library_service = CDISCLibraryService(apikey, cache, raise_on_error=False)
+    update_rules_only = not apikey
     cache_populator = CachePopulator(
         cache,
         library_service,
@@ -410,9 +640,16 @@ def update_cache(
         remove_custom_rules,
         update_custom_rule,
         custom_standard,
+        custom_standard_encoding,
         remove_custom_standard,
         cache_path,
+        rules_only=update_rules_only,
     )
+
+    if update_rules_only:
+        logger = logging.getLogger("validator")
+        logger.warning("API key was not provided. Only CORE rules will be updated.")
+
     if custom_rule or custom_rules_directory:
         cache_populator.add_custom_rules()
     elif remove_custom_rules:
@@ -426,14 +663,14 @@ def update_cache(
     else:
         asyncio.run(cache_populator.update_cache())
 
-    print("Cache updated successfully")
+    print("Cache update complete")
 
 
 @click.command()
 @click.option(
     "-c",
-    "--cache_path",
-    default=DefaultFilePaths.CACHE.value,
+    "--cache-path",
+    default=DEFAULT_CACHE_PATH,
     help="Relative path to cache files containing pre loaded metadata and rules",
 )
 @click.option(
@@ -451,15 +688,15 @@ def update_cache(
 )
 @click.option(
     "-cr",
-    "--custom_rules",
+    "--custom-rules",
     is_flag=True,
     default=False,
     required=False,
-    help="flag to list custom rules in the cache",
+    help="Flag to list custom rules in the cache",
 )
 @click.option(
     "-r",
-    "--rule_id",
+    "--rule-id",
     required=False,
     help="Rule ID to get rule for.",
     multiple=True,
@@ -508,8 +745,8 @@ def list_rules(
 @click.command()
 @click.option(
     "-c",
-    "--cache_path",
-    default=DefaultFilePaths.CACHE.value,
+    "--cache-path",
+    default=DEFAULT_CACHE_PATH,
     help="Relative path to cache files containing pre loaded metadata and rules",
 )
 @click.option(
@@ -528,7 +765,6 @@ def list_rule_sets(ctx: click.Context, cache_path: str, custom: bool):
         rules_file = DefaultFilePaths.RULES_DICTIONARY.value
     with open(os.path.join(cache_path, rules_file), "rb") as f:
         rules_data = pickle.load(f)
-
     rule_sets = {}
     for key in rules_data.keys():
         if "/" in key:
@@ -536,18 +772,16 @@ def list_rule_sets(ctx: click.Context, cache_path: str, custom: bool):
             standard = parts[0]
             version = parts[1]
             substandard = parts[2] if len(parts) > 2 else None
-            if substandard:
-                version_key = f"{version}/{substandard}"
-            else:
-                version_key = version
             if standard not in rule_sets:
                 rule_sets[standard] = set()
-            rule_sets[standard].add(version_key)
-
+            rule_sets[standard].add((version, substandard))
     for standard in sorted(rule_sets.keys()):
-        versions = sorted(rule_sets[standard])
-        for version in versions:
-            print(f"{standard.upper()}, {version}")
+        versions = sorted(rule_sets[standard], key=lambda x: (x[0], x[1] or ""))
+        for version, substandard in versions:
+            if substandard:
+                print(f"{standard}, {version}, {substandard}")
+            else:
+                print(f"{standard}, {version}")
 
 
 @click.command()
@@ -558,7 +792,7 @@ def list_rule_sets(ctx: click.Context, cache_path: str, custom: bool):
     multiple=True,
 )
 @click.pass_context
-def list_dataset_metadata(ctx: click.Context, dataset_path: Tuple[str]):
+def list_dataset_metadata(ctx: click.Context, dataset_path: tuple[str]):
     """
     Command that lists metadata of given datasets.
 
@@ -596,8 +830,8 @@ def version():
 @click.command()
 @click.option(
     "-c",
-    "--cache_path",
-    default=DefaultFilePaths.CACHE.value,
+    "--cache-path",
+    default=DEFAULT_CACHE_PATH,
     help="Relative path to cache files containing pre loaded metadata and rules",
 )
 @click.option(
@@ -607,7 +841,7 @@ def version():
     required=False,
     multiple=True,
 )
-def list_ct(cache_path: str, subsets: Tuple[str]):
+def list_ct(cache_path: str, subsets: set[str]):
     """
     Command to list the ct packages available in the cache.
     """
@@ -621,106 +855,72 @@ def list_ct(cache_path: str, subsets: Tuple[str]):
 
 
 @click.command()
-def test_validate():
-    """**Release Test** validate command for executable."""
+@click.argument("filetype", type=click.Choice(["json", "xpt"], case_sensitive=False))
+def test_validate(filetype):
+    """
+    Verify CORE with a test validation.
+    Requires FILETYPE argument: 'json' or 'xpt'.
+    Report file is confirmed and automatically cleaned up. For actual validation, use 'validate' command.
+    """
     try:
-        import sys
-        import os
-        from cdisc_rules_engine.models.validation_args import Validation_args
-        from cdisc_rules_engine.models.external_dictionaries_container import (
-            ExternalDictionariesContainer,
-        )
-        from cdisc_rules_engine.enums.report_types import ReportTypes
-        from cdisc_rules_engine.enums.progress_parameter_options import (
-            ProgressParameterOptions,
-        )
-        from cdisc_rules_engine.enums.default_file_paths import DefaultFilePaths
-
-        base_path = os.path.join("tests", "resources", "datasets")
-        ts_path = os.path.join(base_path, "TS.json")
-        ae_path = os.path.join(base_path, "ae.xpt")
-        if not all(os.path.exists(path) for path in [ts_path, ae_path]):
-            raise FileNotFoundError(
-                "Test datasets not found in tests/resources/datasets"
-            )
+        base_path = os.path.join("resources", "datasets")
+        if filetype.lower() == "json":
+            test_file = os.path.join(base_path, "TS.json")
+            output_name = "json_validation_output"
+        else:
+            test_file = os.path.join(base_path, "ae.xpt")
+            output_name = "xpt_validation_output"
+        if not os.path.exists(test_file):
+            raise FileNotFoundError(f"Test dataset not found: {test_file}")
+        cache_path = DEFAULT_CACHE_PATH
+        pool_size = 10
+        log_level = "disabled"
+        standard = "sdtmig"
+        version = "3.4"
+        output_format = {ReportTypes.XLSX.value}
+        external_dictionaries = ExternalDictionariesContainer({})
+        progress = ProgressParameterOptions.BAR.value
+        max_report_errors = (0, False)
 
         with tempfile.TemporaryDirectory() as temp_dir:
-            cache_path = DefaultFilePaths.CACHE.value
-            pool_size = 10
-            log_level = "disabled"
-            report_template = DefaultFilePaths.EXCEL_TEMPLATE_FILE.value
-            standard = "sdtmig"
-            version = "3.4"
-            substandard = None
-            controlled_terminology_package = set()
-            json_output = os.path.join(temp_dir, "json_validation_output")
-            xpt_output = os.path.join(temp_dir, "xpt_validation_output")
-            output_format = {ReportTypes.XLSX.value}
-            raw_report = False
-            define_version = None
-            external_dictionaries = ExternalDictionariesContainer({})
-            rules = []
-            local_rules = None
-            custom_standard = False
-            progress = ProgressParameterOptions.BAR.value
-            define_xml_path = None
-            validate_xml = False
-            json_output = os.path.join(temp_dir, "json_validation_output")
+            output = os.path.join(temp_dir, output_name)
             run_validation(
                 Validation_args(
                     cache_path,
                     pool_size,
-                    [ts_path],
+                    [test_file],
                     log_level,
-                    report_template,
+                    None,
                     standard,
                     version,
-                    substandard,
-                    controlled_terminology_package,
-                    json_output,
+                    None,
+                    None,
+                    set(),
+                    output,
                     output_format,
-                    raw_report,
-                    define_version,
+                    False,
+                    None,
                     external_dictionaries,
-                    rules,
-                    local_rules,
-                    custom_standard,
+                    [],
+                    [],
+                    None,
+                    False,
                     progress,
-                    define_xml_path,
-                    validate_xml,
+                    None,
+                    False,
+                    (),
+                    None,
+                    max_report_errors,
+                    None,
                 )
             )
-            print("JSON validation completed successfully!")
-            xpt_output = os.path.join(temp_dir, "xpt_validation_output")
-            run_validation(
-                Validation_args(
-                    cache_path,
-                    pool_size,
-                    [ae_path],
-                    log_level,
-                    report_template,
-                    standard,
-                    version,
-                    substandard,
-                    controlled_terminology_package,
-                    xpt_output,
-                    output_format,
-                    raw_report,
-                    define_version,
-                    external_dictionaries,
-                    rules,
-                    local_rules,
-                    custom_standard,
-                    progress,
-                    define_xml_path,
-                    validate_xml,
-                )
-            )
-            print("XPT validation completed successfully!")
-        print("All validation tests completed successfully!")
+            print(f"{filetype.upper()} validation completed successfully!")
         sys.exit(0)
     except Exception as e:
-        print(f"Validation test failed: {str(e)}")
+        import traceback
+
+        print(f"{filetype.upper()} validation test failed: {str(e)}")
+        print(traceback.format_exc())
         sys.exit(1)
 
 

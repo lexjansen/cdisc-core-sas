@@ -13,11 +13,13 @@ class VariablesMetadataWithLibraryMetadataDatasetBuilder(BaseDatasetBuilder):
         variable_size
         variable_data_type
         variable_has_empty_values
+        variable_is_empty
         library_variable_name,
         library_variable_label,
         library_variable_data_type,
         library_variable_role,
         library_variable_core,
+        library_variable_ccode,
         library_variable_order_number
         """
         # get dataset metadata and execute the rule
@@ -30,26 +32,46 @@ class VariablesMetadataWithLibraryMetadataDatasetBuilder(BaseDatasetBuilder):
         )
         dataset_contents = self.get_dataset_contents()
         library_variables_metadata = self.get_library_variables_metadata()
-
+        column_name_mapping = {
+            "library_variable_ordinal": "library_variable_order_number",
+            "library_variable_simpleDatatype": "library_variable_data_type",
+        }
+        if hasattr(library_variables_metadata, "data"):
+            library_data = library_variables_metadata.data
+        else:
+            library_data = library_variables_metadata._data
+        library_data = library_data.rename(columns=column_name_mapping)
         data = content_variables_metadata.merge(
-            library_variables_metadata.data,
+            library_data[
+                [
+                    "library_variable_name",
+                    "library_variable_label",
+                    "library_variable_data_type",
+                    "library_variable_role",
+                    "library_variable_core",
+                    "library_variable_ccode",
+                    "library_variable_order_number",
+                ]
+            ],
             how="left",
             left_on="variable_name",
             right_on="library_variable_name",
         ).fillna("")
 
-        data["variable_has_empty_values"] = data.apply(
-            lambda row: self.variable_has_null_values(
+        data[["variable_has_empty_values", "variable_is_empty"]] = data.apply(
+            lambda row: self.get_variable_null_stats(
                 row["variable_name"], dataset_contents
             ),
             axis=1,
+            result_type="expand",
         )
+
         return data
 
-    def variable_has_null_values(
+    def get_variable_null_stats(
         self, variable: str, content: DatasetInterface
-    ) -> bool:
+    ) -> tuple[bool, bool]:
         if variable not in content:
-            return True
-        series = content[variable]
-        return series.mask(series == "").isnull().any()
+            return True, True
+        series = content[variable].mask(content[variable] == "")
+        return series.isnull().any(), series.isnull().all()

@@ -16,7 +16,9 @@ from cdisc_rules_engine.utilities.utils import (
     get_sided_match_keys,
     get_dataset_name_from_details,
 )
+from cdisc_rules_engine.exceptions.custom_exceptions import PreprocessingError
 import os
+import pandas as pd
 
 
 class DatasetPreprocessor:
@@ -92,6 +94,9 @@ class DatasetPreprocessor:
             else:
                 if self._is_split_domain(domain_name):
                     continue
+                target_domain_name: str = (
+                    self._dataset_metadata.domain or self._dataset_metadata.name
+                )
                 file_infos: list[SDTMDatasetMetadata] = [
                     item
                     for item in datasets
@@ -102,15 +107,35 @@ class DatasetPreprocessor:
                         or (
                             domain_name == "SUPP--"
                             and (not self._dataset_metadata.is_supp)
-                            and item.rdomain == self._dataset_metadata.domain
+                            and item.rdomain == target_domain_name
                         )
                     )
                 ]
+
+            if not file_infos and not (
+                (self._dataset_metadata.is_supp and domain_name == "SUPP--")
+                or self._dataset_metadata.name == "RELREC"
+            ):
+                logger.info(
+                    f"Related dataset '{domain_name}' not found for {self._dataset_metadata.name}. "
+                    f"Skipping merge for this dataset."
+                )
+                continue
+
             for file_info in file_infos:
                 if file_info.domain in merged_domains:
                     continue
+
                 filename = get_dataset_name_from_details(file_info)
-                other_dataset: DatasetInterface = self._download_dataset(filename)
+
+                # Try to download the dataset
+                try:
+                    other_dataset: DatasetInterface = self._download_dataset(filename)
+                except Exception as e:
+                    raise PreprocessingError(
+                        f"Failed to download dataset '{filename}' for preprocessing: {str(e)}"
+                    )
+
                 referenced_targets = set(
                     [
                         target.replace(f"{domain_name}.", "")
@@ -134,6 +159,7 @@ class DatasetPreprocessor:
                         right_dataset=other_dataset,
                         right_dataset_domain_name=file_info.domain,
                         match_keys=domain_details.get("match_key"),
+                        datasets=datasets,
                     )
                     merged_domains.add(file_info.domain)
                 else:
@@ -144,27 +170,37 @@ class DatasetPreprocessor:
                         right_dataset_domain_details=domain_details,
                         datasets=datasets,
                     )
-        logger.info(f"Dataset after preprocessing = {result}")
+                    merged_domains.add(
+                        file_info.domain if file_info.domain else file_info.name
+                    )
         return result
 
     def _find_parent_dataset(
         self, datasets: Iterable[SDTMDatasetMetadata], domain_details: dict
     ) -> SDTMDatasetMetadata:
         matching_datasets = []
-        if "RDOMAIN" in self._dataset.columns:
-            rdomain_column = self._dataset.data["RDOMAIN"]
-            unique_domains = set(rdomain_column.unique())
-            for dataset in datasets:
-                if dataset.domain in unique_domains:
-                    matching_datasets.append(dataset)
-        else:
-            match_keys = domain_details.get("match_key")
-            for dataset in datasets:
-                has_all_match_keys = all(
-                    match_key in dataset.first_record for match_key in match_keys
-                )
-                if has_all_match_keys:
-                    matching_datasets.append(dataset)
+        try:
+            if "RDOMAIN" in self._dataset.columns:
+                rdomain_column = self._dataset.data["RDOMAIN"]
+                unique_domains = set(rdomain_column.unique())
+                for dataset in datasets:
+                    if dataset.domain in unique_domains:
+                        matching_datasets.append(dataset)
+            else:
+                match_keys = domain_details.get("match_key")
+                for dataset in datasets:
+                    has_all_match_keys = all(
+                        match_key in dataset.first_record for match_key in match_keys
+                    )
+                    if has_all_match_keys:
+                        matching_datasets.append(dataset)
+        except Exception as e:
+            raise PreprocessingError(
+                f"Error during parent dataset search. "
+                f"Current dataset: {self._dataset_metadata.name}, "
+                f"Match keys: {domain_details.get('match_key')}, "
+                f"Error: {str(e)}"
+            )
         if not matching_datasets:
             logger.warning(
                 f"Child specified in match but no parent datasets found for: {domain_details}"
@@ -187,32 +223,293 @@ class DatasetPreprocessor:
         left_dataset_domain_name: str,
         right_dataset: DatasetInterface,
         right_dataset_domain_name: str,
-        match_keys,
+        match_keys: List[str],
+        datasets: Iterable[SDTMDatasetMetadata] = None,
     ) -> DatasetInterface:
-        """
-        Merges child to parent datasets on their match keys.
-        Identifies dataset type and merges based on it.
-        """
-        left_dataset_match_keys = replace_pattern_in_list_of_strings(
-            get_sided_match_keys(match_keys=match_keys, side="left"),
-            "--",
-            left_dataset_domain_name,
+        is_supplemental, rdomain_dataset = self._classify_dataset(
+            left_dataset, self._dataset_metadata
         )
-        right_dataset_match_keys = replace_pattern_in_list_of_strings(
-            get_sided_match_keys(match_keys=match_keys, side="right"),
-            "--",
-            right_dataset_domain_name,
-        )
-        result = left_dataset.merge(
-            right_dataset.data,
-            how="left",
-            left_on=left_dataset_match_keys,
-            right_on=right_dataset_match_keys,
-            suffixes=("", f".{right_dataset_domain_name}"),
-        )
-        return result
+        has_idvar_keys = "IDVAR" in match_keys or "IDVARVAL" in match_keys
+        if (is_supplemental or rdomain_dataset) and has_idvar_keys:
+            return self._merge_rdomain_dataset(
+                left_dataset,
+                left_dataset_domain_name,
+                right_dataset,
+                right_dataset_domain_name,
+                match_keys,
+            )
+        else:
+            left_dataset_match_keys = replace_pattern_in_list_of_strings(
+                get_sided_match_keys(match_keys=match_keys, side="left"),
+                "--",
+                left_dataset_domain_name,
+            )
+            right_dataset_match_keys = replace_pattern_in_list_of_strings(
+                get_sided_match_keys(match_keys=match_keys, side="right"),
+                "--",
+                right_dataset_domain_name,
+            )
+            try:
+                result = left_dataset.merge(
+                    right_dataset.data,
+                    how="left",
+                    left_on=left_dataset_match_keys,
+                    right_on=right_dataset_match_keys,
+                    suffixes=("", f".{right_dataset_domain_name}"),
+                )
+                return result
+            except Exception as e:
+                raise PreprocessingError(
+                    f"Merge operation failed during child merge. "
+                    f"Left dataset: {left_dataset_domain_name}, "
+                    f"Right dataset: {right_dataset_domain_name}, "
+                    f"Error: {str(e)}"
+                )
 
-    def _merge_datasets(
+    def _classify_dataset(
+        self, dataset: DatasetInterface, metadata: SDTMDatasetMetadata
+    ) -> tuple[bool, bool]:
+        is_supplemental = metadata and metadata.is_supp
+        has_rdomain_not_supp = "RDOMAIN" in dataset.columns and not is_supplemental
+
+        return is_supplemental, has_rdomain_not_supp
+
+    def _merge_rdomain_dataset(
+        self,
+        left_dataset: DatasetInterface,
+        left_dataset_domain_name: str,
+        right_dataset: DatasetInterface,
+        right_dataset_domain_name: str,
+        match_keys: List[str],
+    ) -> DatasetInterface:
+        try:
+            relevant_child_records = self._get_relevant_child_records(
+                left_dataset, right_dataset_domain_name
+            )
+            merged_records = self._merge_with_idvar_logic(
+                relevant_child_records,
+                right_dataset,
+                left_dataset_domain_name,
+                right_dataset_domain_name,
+                match_keys,
+            )
+            return self._update_dataset_with_merged_records(
+                left_dataset, relevant_child_records, merged_records
+            )
+        except Exception as e:
+            raise PreprocessingError(
+                f"Failed to merge with IDVAR logic. "
+                f"Left dataset: {left_dataset_domain_name}, "
+                f"Right dataset: {right_dataset_domain_name}, "
+                f"Match keys: {match_keys}, "
+                f"Error: {str(e)}"
+            )
+
+    def _get_relevant_child_records(
+        self, left_dataset: DatasetInterface, parent_domain: str
+    ) -> DatasetInterface:
+        if self._dataset_metadata.is_supp and self._dataset_metadata.rdomain:
+            return left_dataset
+        if "RDOMAIN" in left_dataset.columns:
+            filtered_records = left_dataset[left_dataset["RDOMAIN"] == parent_domain]
+            return filtered_records
+        return left_dataset
+
+    def _merge_with_idvar_logic(
+        self,
+        child_records: DatasetInterface,
+        parent_dataset: DatasetInterface,
+        left_domain: str,
+        right_domain: str,
+        match_keys: List[str],
+    ) -> pd.DataFrame:
+        standard_keys = [key for key in match_keys if key not in ["IDVAR", "IDVARVAL"]]
+        has_idvar_keys = "IDVAR" in match_keys or "IDVARVAL" in match_keys
+        if standard_keys and has_idvar_keys:
+            return self._merge_standard_then_filter_idvar(
+                child_records, parent_dataset, left_domain, right_domain, standard_keys
+            )
+        return self._merge_idvar_only(child_records, parent_dataset, right_domain)
+
+    def _merge_standard_then_filter_idvar(
+        self,
+        child_records: DatasetInterface,
+        parent_dataset: DatasetInterface,
+        left_domain: str,
+        right_domain: str,
+        standard_keys: List[str],
+    ) -> pd.DataFrame:
+        results = []
+        for child_idx, child_row in child_records.iterrows():
+            idvar = child_row.get("IDVAR")
+            idvarval = child_row.get("IDVARVAL")
+            parent_candidates = self._filter_parents_by_standard_keys(
+                parent_dataset, child_row, standard_keys, left_domain, right_domain
+            )
+            final_match = None
+            if not parent_candidates.empty and pd.notna(idvar) and pd.notna(idvarval):
+                final_match = self._find_idvar_match_in_candidates(
+                    parent_candidates, idvar, idvarval, right_domain
+                )
+            elif not parent_candidates.empty and (pd.isna(idvar) or pd.isna(idvarval)):
+                final_match = parent_candidates.iloc[0]
+            if final_match is not None:
+                merged_record = {**child_row.to_dict(), **final_match.to_dict()}
+            else:
+                merged_record = child_row.to_dict()
+                for col in parent_dataset.columns:
+                    if col not in merged_record:
+                        merged_record[col] = None
+            results.append(merged_record)
+        return child_records.__class__.from_records(results)
+
+    def _filter_parents_by_standard_keys(
+        self,
+        parent_dataset: DatasetInterface,
+        child_row: pd.Series,
+        standard_keys: List[str],
+        left_domain: str,
+        right_domain: str,
+    ) -> pd.DataFrame:
+        left_keys = replace_pattern_in_list_of_strings(
+            get_sided_match_keys(standard_keys, "left"), "--", left_domain
+        )
+        right_keys = replace_pattern_in_list_of_strings(
+            get_sided_match_keys(standard_keys, "right"), "--", right_domain
+        )
+        filter_conditions = pd.Series(
+            [True] * len(parent_dataset), index=parent_dataset.index
+        )
+        for left_key, right_key in zip(left_keys, right_keys):
+            if left_key in child_row and right_key in parent_dataset.columns:
+                child_value = child_row[left_key]
+                if pd.notna(child_value):
+                    key_condition = parent_dataset[right_key] == child_value
+                    filter_conditions &= key_condition
+        filtered_parents = parent_dataset[filter_conditions]
+        return filtered_parents
+
+    def _find_idvar_match_in_candidates(  # noqa
+        self,
+        parent_candidates: pd.DataFrame,
+        idvar: str,
+        idvarval: str,
+        right_domain: str,
+    ) -> pd.Series:
+        idvar_columns = [
+            idvar,
+            f"{idvar}.{right_domain}",
+            f"{right_domain}.{idvar}",
+        ]
+        for idvar_col in idvar_columns:
+            if idvar_col not in parent_candidates.columns:
+                continue
+            parent_col = parent_candidates[idvar_col]
+            try:
+                if parent_col.dtype.kind == "O":
+                    for idx in parent_candidates.index:
+                        parent_val = parent_candidates.loc[idx, idvar_col]
+                        if pd.isna(parent_val):
+                            continue
+                        converted_val = self._convert_idvarval_for_comparison(
+                            idvarval, type(parent_val)
+                        )
+                        if converted_val == parent_val:
+                            return parent_candidates.loc[idx]
+                else:
+                    converted_idvarval = self._convert_idvarval_for_comparison(
+                        idvarval, parent_col.dtype
+                    )
+                    matching_mask = parent_col == converted_idvarval
+                    matching_rows = parent_candidates[matching_mask]
+                    if not matching_rows.empty:
+                        return matching_rows.iloc[0]
+            except Exception as e:
+                logger.warning(f"IDVAR matching failed for column '{idvar_col}': {e}")
+                continue
+            # fallback on string comparison
+            try:
+                string_parent_col = parent_col.astype(str)
+                string_idvarval = str(idvarval).strip()
+                string_matching_mask = string_parent_col == string_idvarval
+                string_matching_rows = parent_candidates[string_matching_mask]
+                if not string_matching_rows.empty:
+                    return string_matching_rows.iloc[0]
+            except Exception as e:
+                logger.warning(f"String fallback failed for column '{idvar_col}': {e}")
+        logger.error(f"No IDVAR match found for {idvar}={idvarval}")
+        return None
+
+    def _convert_idvarval_for_comparison(
+        self, idvarval: str, target_type_or_dtype
+    ) -> Union[str, int, float]:  # noqa
+        # typematch between the two columns
+        try:
+            # Python native types
+            if target_type_or_dtype in [int, float, str]:
+                if target_type_or_dtype == int:
+                    return int(float(str(idvarval).strip()))
+                elif target_type_or_dtype == float:
+                    return float(str(idvarval).strip())
+                else:  # str
+                    return str(idvarval).strip()
+            # Handle pandas inferring object type
+            elif hasattr(target_type_or_dtype, "__name__"):
+                type_name = target_type_or_dtype.__name__
+                if "int" in type_name.lower():
+                    return int(float(str(idvarval).strip()))
+                elif "float" in type_name.lower():
+                    return float(str(idvarval).strip())
+                else:
+                    return str(idvarval).strip()
+            # fallback on string type
+            return str(idvarval).strip()
+        except Exception as e:
+            logger.warning(
+                f"Type conversion failed for '{idvarval}' -> {target_type_or_dtype}: {e}"
+            )
+            return str(idvarval).strip()
+
+    def _merge_idvar_only(
+        self,
+        child_records: DatasetInterface,
+        parent_dataset: DatasetInterface,
+        right_domain: str,
+    ) -> pd.DataFrame:
+        results = []
+        for child_idx, child_row in child_records.iterrows():
+            idvar = child_row.get("IDVAR")
+            idvarval = child_row.get("IDVARVAL")
+            parent_match = None
+            if pd.notna(idvar) and pd.notna(idvarval):
+                parent_match = self._find_idvar_match_in_candidates(
+                    parent_dataset.data, idvar, idvarval, right_domain
+                )
+            if parent_match is not None:
+                merged_record = {**child_row.to_dict(), **parent_match.to_dict()}
+            else:
+                merged_record = child_row.to_dict()
+                for col in parent_dataset.columns:
+                    if col not in merged_record:
+                        merged_record[col] = None
+            results.append(merged_record)
+        return child_records.__class__.from_records(results)
+
+    def _update_dataset_with_merged_records(
+        self,
+        original_dataset: DatasetInterface,
+        old_records: DatasetInterface,
+        merged_records: pd.DataFrame,
+    ) -> DatasetInterface:
+        if old_records.empty:
+            return original_dataset
+        if self._dataset_metadata.is_supp:
+            return self._dataset.__class__(data=merged_records)
+        remaining_records = original_dataset.data.drop(old_records.index)
+        updated_data = pd.concat([remaining_records, merged_records], ignore_index=True)
+        return self._dataset.__class__(data=updated_data)
+
+    def _merge_datasets(  # noqa
         self,
         left_dataset: DatasetInterface,
         left_dataset_domain_name: str,
@@ -242,37 +539,59 @@ class DatasetPreprocessor:
 
         # merge datasets based on their type
         if right_dataset_domain_name == "RELREC":
-            result: DatasetInterface = DataProcessor.merge_relrec_datasets(
-                left_dataset=left_dataset,
-                left_dataset_domain_name=left_dataset_domain_name,
-                relrec_dataset=right_dataset,
-                datasets=datasets,
-                dataset_preprocessor=self,
-                wildcard=right_dataset_domain_details.get("wildcard"),
-            )
-        elif right_dataset_domain_name == "SUPP--":
-            result: DatasetInterface = DataProcessor.merge_pivot_supp_dataset(
-                dataset_implementation=self._data_service.dataset_implementation,
-                left_dataset=left_dataset,
-                right_dataset=right_dataset,
-            )
-        elif self._rule_processor.is_relationship_dataset(right_dataset_domain_name):
-            result: DatasetInterface = DataProcessor.merge_relationship_datasets(
-                left_dataset=left_dataset,
-                left_dataset_match_keys=left_dataset_match_keys,
-                right_dataset=right_dataset,
-                right_dataset_match_keys=right_dataset_match_keys,
-                right_dataset_domain=right_dataset_domain_details,
-            )
+            try:
+                result: DatasetInterface = DataProcessor.merge_relrec_datasets(
+                    left_dataset=left_dataset,
+                    left_dataset_domain_name=left_dataset_domain_name,
+                    relrec_dataset=right_dataset,
+                    datasets=datasets,
+                    dataset_preprocessor=self,
+                    wildcard=right_dataset_domain_details.get("wildcard"),
+                )
+            except Exception as e:
+                raise PreprocessingError(
+                    f"Failed to merge RELREC dataset in preprocessing. "
+                    f"Left dataset: {left_dataset_domain_name}, "
+                    f"RELREC dataset: {right_dataset_domain_name}, "
+                    f"Wildcard: {right_dataset_domain_details.get('wildcard')}, "
+                    f"Match keys: {match_keys}, "
+                    f"Error: {str(e)}"
+                )
+        elif right_dataset_domain_name.startswith(
+            "SUPP"
+        ) or right_dataset_domain_name.startswith("SQ"):
+            try:
+                result: DatasetInterface = DataProcessor.merge_pivot_supp_dataset(
+                    dataset_implementation=self._data_service.dataset_implementation,
+                    left_dataset=left_dataset,
+                    right_dataset=right_dataset,
+                )
+            except Exception as e:
+                raise PreprocessingError(
+                    f"Failed to merge supplemental/qualifier dataset. "
+                    f"Left dataset: {left_dataset_domain_name} ({len(left_dataset)} rows), "
+                    f"SUPP/SQ dataset: {right_dataset_domain_name} ({len(right_dataset)} rows), "
+                    f"Error: {str(e)}"
+                )
         else:
-            result: DatasetInterface = DataProcessor.merge_sdtm_datasets(
-                left_dataset=left_dataset,
-                right_dataset=right_dataset,
-                left_dataset_match_keys=left_dataset_match_keys,
-                right_dataset_match_keys=right_dataset_match_keys,
-                right_dataset_domain_name=right_dataset_domain_name,
-                join_type=JoinTypes(
-                    right_dataset_domain_details.get("join_type", "inner")
-                ),
-            )
+            try:
+                result: DatasetInterface = DataProcessor.merge_sdtm_datasets(
+                    left_dataset=left_dataset,
+                    right_dataset=right_dataset,
+                    left_dataset_match_keys=left_dataset_match_keys,
+                    right_dataset_match_keys=right_dataset_match_keys,
+                    right_dataset_domain_name=right_dataset_domain_name,
+                    join_type=JoinTypes(
+                        right_dataset_domain_details.get("join_type", "inner")
+                    ),
+                )
+            except KeyError as e:
+                # Handle with COLUMN_NOT_FOUND_IN_DATA in rules_engine
+                raise e
+            except Exception as e:
+                raise PreprocessingError(
+                    f"Failed to merge datasets. "
+                    f"Left dataset: {left_dataset_domain_name}, Right dataset: {right_dataset_domain_name}, "
+                    f"Error: {str(e)}"
+                )
         return result

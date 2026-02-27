@@ -9,7 +9,7 @@ from cdisc_rules_engine.utilities.utils import (
     get_corresponding_datasets,
     tag_source,
 )
-from typing import List, Iterable
+from typing import List, Iterable, Optional
 from cdisc_rules_engine.utilities import sdtm_utilities
 from cdisc_rules_engine.utilities.rule_processor import RuleProcessor
 from cdisc_rules_engine.models.dataset.dataset_interface import DatasetInterface
@@ -101,7 +101,9 @@ class BaseDatasetBuilder:
             )
         else:
             # single dataset. the most common case
-            dataset: DatasetInterface = self.data_service.get_dataset(self.dataset_path)
+            dataset: DatasetInterface = self.data_service.get_dataset(
+                dataset_name=self.dataset_path
+            )
             dataset = tag_source(dataset, self.dataset_metadata)
         return dataset
 
@@ -119,6 +121,7 @@ class BaseDatasetBuilder:
             "define_dataset_is_non_standard"
             "define_dataset_variables"
             "define_dataset_key_sequence"
+            "define_dataset_has_no_data"
         """
 
         define_xml_reader = DefineXMLReaderFactory.get_define_xml_reader(
@@ -140,6 +143,7 @@ class BaseDatasetBuilder:
             "define_dataset_is_non_standard"
             "define_dataset_variables"
             "define_dataset_key_sequence"
+            "define_dataset_has_no_data"
         """
 
         define_xml_reader = DefineXMLReaderFactory.get_define_xml_reader(
@@ -154,9 +158,17 @@ class BaseDatasetBuilder:
         define_xml_reader = DefineXMLReaderFactory.get_define_xml_reader(
             self.dataset_path, self.define_xml_path, self.data_service, self.cache
         )
-        return define_xml_reader.extract_variables_metadata(
-            domain_name=self.dataset_metadata.domain
-        )
+        # If domain is not set and this is a SUPP domain, use rdomain
+        domain = self.dataset_metadata.domain
+        if not domain and getattr(self.dataset_metadata, "is_supp", False):
+            domain = getattr(self.dataset_metadata, "rdomain", None)
+            name = getattr(self.dataset_metadata, "name", None)
+            return define_xml_reader.extract_variables_metadata(
+                domain_name=domain, name=name
+            )
+        if not domain:
+            return []
+        return define_xml_reader.extract_variables_metadata(domain_name=domain)
 
     def get_define_xml_value_level_metadata(self) -> List[dict]:
         """
@@ -187,41 +199,36 @@ class BaseDatasetBuilder:
             and self.dataset_metadata.rdomain
         ):
             domain = "SUPPQUAL"
-        elif (
-            not self.dataset_metadata.domain
-            and not self.dataset_metadata.rdomain
-            and "rel" in self.dataset_metadata.name.lower()
-        ):
-            if self.dataset_metadata.name.lower().startswith(
-                "ap"
-            ) and self.dataset_metadata.name.lower()[2:].startswith("rel"):
-                domain = self.dataset_metadata.name[2:]
-            else:
-                domain = self.dataset_metadata.name
         else:
             domain = self.dataset_metadata.domain
         variables: List[dict] = sdtm_utilities.get_variables_metadata_from_standard(
-            domain=domain, library_metadata=self.library_metadata
+            domain=self.dataset_metadata.unsplit_name,
+            library_metadata=self.library_metadata,
+            data_service=self.data_service,
+            dataset=self.get_dataset_contents(),
+            datasets=self.datasets,
+            dataset_metadata=self.dataset_metadata,
+            dataset_path=self.dataset_path,
+        )
+        variables_metadata: dict = self.library_metadata.variables_metadata.get(
+            domain, {}
         )
         for variable in variables:
             variable["ccode"] = ""
-            if variable.get("codelistSubmissionValues"):
+            variable_metadata: Optional[dict] = variables_metadata.get(variable["name"])
+            if variable_metadata:
                 if "_links" in variable and "codelist" in variable["_links"]:
                     first_codelist = variable["_links"]["codelist"][0]
-                    href = first_codelist["href"]
-                    codelist_code = href.split("/")[-1]
+                    codelist_code = first_codelist["href"].split("/")[-1]
                     variable["ccode"] = codelist_code
-        # Rename columns:
-        column_name_mapping = {
-            "ordinal": "order_number",
-            "simpleDatatype": "data_type",
-        }
+            if "role" not in variable:
+                variable["role"] = ""
+            if "core" not in variable:
+                variable["core"] = ""
 
         for var in variables:
-            var["name"] = var["name"].replace("--", self.dataset_metadata.domain)
-            for key, new_key in column_name_mapping.items():
-                if key in var:
-                    var[new_key] = var.pop(key)
+            replacement_domain = self.dataset_metadata.domain or ""
+            var["name"] = var["name"].replace("--", replacement_domain)
 
         dataset = self.dataset_implementation.from_records(variables)
         dataset.data = dataset.data.add_prefix("library_variable_")

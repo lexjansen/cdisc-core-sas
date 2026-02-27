@@ -2,6 +2,7 @@ from cdisc_rules_engine.check_operators.dataframe_operators import DataframeType
 import pytest
 from cdisc_rules_engine.models.dataset.dask_dataset import DaskDataset
 from cdisc_rules_engine.models.dataset.pandas_dataset import PandasDataset
+import pandas as pd
 
 
 @pytest.mark.parametrize(
@@ -59,12 +60,80 @@ def test_is_not_unique_set(target, comparator, dataset_type, expected_result):
 
 
 @pytest.mark.parametrize(
+    "target, comparator, regex, dataset_type, expected_result",
+    [
+        (
+            "ARM",
+            "DTC",
+            r"^\d{4}-\d{2}-\d{2}",
+            PandasDataset,
+            [False, False, False, False],
+        ),
+        ("ARM", "TAE", None, PandasDataset, [False, False, True, True]),
+    ],
+)
+def test_is_unique_set_with_regex(
+    target, comparator, regex, dataset_type, expected_result
+):
+    data = {
+        "ARM": ["PLACEBO", "PLACEBO", "ACTIVE", "ACTIVE"],
+        "TAE": [1, 1, 1, 2],
+        "DTC": [
+            "2024-01-15T10:30:00",
+            "2024-01-15T14:45:00",
+            "2024-01-16T10:30:00",
+            "2024-01-16T14:45:00",
+        ],
+    }
+    df = dataset_type.from_dict(data)
+    params = {"target": target, "comparator": comparator}
+    if regex is not None:
+        params["regex"] = regex
+    result = DataframeType(
+        {"value": df, "column_prefix_map": {"--": "AR"}}
+    ).is_unique_set(params)
+    assert result.equals(df.convert_to_series(expected_result))
+
+
+@pytest.mark.parametrize(
     "target, comparator, dataset_type, expected_result",
     [
-        ("SESEQ", "USUBJID", PandasDataset, True),
-        ("UNORDERED", "USUBJID", PandasDataset, False),
-        ("SESEQ", "USUBJID", DaskDataset, True),
-        ("UNORDERED", "USUBJID", DaskDataset, False),
+        (
+            "SESEQ",
+            "USUBJID",
+            PandasDataset,
+            pd.Series([True, True, True, True]),
+        ),
+        (
+            "UNORDERED",
+            "USUBJID",
+            PandasDataset,
+            pd.Series([False, True, False, True]),
+        ),
+        (
+            "SESEQ",
+            "USUBJID",
+            DaskDataset,
+            pd.Series([True, True, True, True]),
+        ),
+        (
+            "UNORDERED",
+            "USUBJID",
+            DaskDataset,
+            pd.Series([False, True, False, True]),
+        ),
+        (
+            "SESEQ",
+            ["USUBJID"],
+            PandasDataset,
+            pd.Series([True, True, True, True]),
+        ),
+        (
+            "UNORDERED",
+            ["USUBJID"],
+            PandasDataset,
+            pd.Series([False, True, False, True]),
+        ),
     ],
 )
 def test_is_ordered_set(target, comparator, dataset_type, expected_result):
@@ -73,16 +142,36 @@ def test_is_ordered_set(target, comparator, dataset_type, expected_result):
     result = DataframeType({"value": df}).is_ordered_set(
         {"target": target, "comparator": comparator}
     )
-    assert result == expected_result
+    pd.testing.assert_series_equal(result, expected_result, check_names=False)
 
 
 @pytest.mark.parametrize(
     "target, comparator, dataset_type, expected_result",
     [
-        ("SESEQ", "USUBJID", PandasDataset, False),
-        ("UNORDERED", "USUBJID", PandasDataset, True),
-        ("SESEQ", "USUBJID", DaskDataset, False),
-        ("UNORDERED", "USUBJID", DaskDataset, True),
+        (
+            "SESEQ",
+            "USUBJID",
+            PandasDataset,
+            pd.Series([False, False, False, False]),
+        ),
+        (
+            "UNORDERED",
+            "USUBJID",
+            PandasDataset,
+            pd.Series([True, False, True, False]),
+        ),
+        (
+            "SESEQ",
+            "USUBJID",
+            DaskDataset,
+            pd.Series([False, False, False, False]),
+        ),
+        (
+            "UNORDERED",
+            "USUBJID",
+            DaskDataset,
+            pd.Series([True, False, True, False]),
+        ),
     ],
 )
 def test_is_not_ordered_set(target, comparator, dataset_type, expected_result):
@@ -91,7 +180,42 @@ def test_is_not_ordered_set(target, comparator, dataset_type, expected_result):
     result = DataframeType({"value": df}).is_not_ordered_set(
         {"target": target, "comparator": comparator}
     )
-    assert result == expected_result
+    pd.testing.assert_series_equal(result, expected_result, check_names=False)
+
+
+def test_is_ordered_set_multiple_comparators():
+    data = {
+        "ARMCD": [
+            "PLACEBO",
+            "PLACEBO",
+            "ZAN_LOW",
+            "ZAN_LOW",
+            "ZAN_HIGH",
+            "ZAN_HIGH",
+            "ZAN_HIGH",
+            "ZAN_HIGH",
+        ],
+        "ARM": [
+            "Placebo",
+            "Placebo",
+            "Zanomaline Low Dose",
+            "Zanomaline Low Dose",
+            "Zanomaline High Dose",
+            "Zanomaline High Dose",
+            "Zanomaline High Dose",
+            "Zanomaline High Dose",
+        ],
+        "TAETORD": [1, 2, 1, 2, 1, 2, 3, 2],
+    }
+    df = PandasDataset.from_dict(data)
+    result = DataframeType({"value": df}).is_ordered_set(
+        {"target": "TAETORD", "comparator": ["ARMCD", "ARM"]}
+    )
+    pd.testing.assert_series_equal(
+        result,
+        pd.Series([True, True, True, True, True, True, False, False]),
+        check_names=False,
+    )
 
 
 @pytest.mark.parametrize(

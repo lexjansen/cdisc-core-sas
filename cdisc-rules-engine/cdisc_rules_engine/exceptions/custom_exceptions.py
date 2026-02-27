@@ -57,6 +57,11 @@ class InvalidDatasetFormat(EngineError):
     description = "Dataset data is malformed."
 
 
+class InvalidJSONFormat(EngineError):
+    code = 400
+    description = "JSON data is malformed."
+
+
 class NumberOfAttemptsExceeded(EngineError):
     pass
 
@@ -73,3 +78,30 @@ class UnsupportedDictionaryType(EngineError):
 
 class FailedSchemaValidation(EngineError):
     description = "Error Occured in Schema Validation"
+
+
+class SchemaNotFoundError(EngineError):
+    code = 404
+    description = "XSD file could not be found"
+
+
+class InvalidSchemaProvidedError(EngineError):
+    code = 400
+    description = "Failed to parse XMLSchema"
+
+
+class PreprocessingError(EngineError):
+    description = "Error occurred during dataset preprocessing"
+
+
+class OperationError(EngineError):
+    description = "Error occurred during operation execution"
+
+
+class DatasetBuilderError(EngineError):
+    description = "Error occurred during dataset building"
+
+
+class DateTimeParserError(EngineError):
+    code = 400
+    description = "Failure to parse a datetime string"

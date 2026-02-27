@@ -14,7 +14,11 @@ class ConditionCompositeFactory:
     """
 
     @classmethod
-    def get_condition_composite(cls, conditions: dict) -> ConditionInterface:
+    def get_condition_composite(
+        cls, conditions: dict | str
+    ) -> ConditionInterface | str:
+        if isinstance(conditions, str):
+            return conditions
         composite = ConditionComposite()
         for key, condition_list in conditions.items():
             # validate the rule structure
@@ -24,11 +28,16 @@ class ConditionCompositeFactory:
                 )
 
             if key == AllowedConditionsKeys.NOT.value:
-                # "not" composite wraps a regular composite
-                return NotConditionComposite(
+                not_inner = cls.get_condition_composite(condition_list)
+                not_composite = NotConditionComposite(
                     key=key,
-                    condition_composite=cls.get_condition_composite(conditions["not"]),
+                    condition_composite=not_inner,
                 )
+                composite.add_conditions(
+                    AllowedConditionsKeys.ALL.value,
+                    [not_composite],
+                )
+                continue
             else:
                 # create a regular composite
                 conditions_to_add = []

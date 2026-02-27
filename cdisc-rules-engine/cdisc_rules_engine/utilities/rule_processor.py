@@ -1,5 +1,9 @@
 import re
-from typing import Iterable, List, Optional, Set, Union, Tuple
+import copy
+import os
+
+from typing import Iterable, List, Optional, Union, Tuple
+from cdisc_rules_engine.enums.rule_types import RuleTypes
 from cdisc_rules_engine.interfaces.cache_service_interface import (
     CacheServiceInterface,
 )
@@ -10,8 +14,6 @@ from cdisc_rules_engine.models.dataset_metadata import DatasetMetadata
 from cdisc_rules_engine.models.library_metadata_container import (
     LibraryMetadataContainer,
 )
-
-import os
 from cdisc_rules_engine.constants.classes import (
     FINDINGS_ABOUT,
     FINDINGS,
@@ -22,17 +24,16 @@ from cdisc_rules_engine.constants.domains import (
     SUPPLEMENTARY_DOMAINS,
 )
 from cdisc_rules_engine.constants.rule_constants import ALL_KEYWORD
-from cdisc_rules_engine.constants.use_cases import USE_CASE_DOMAINS
 from cdisc_rules_engine.interfaces import ConditionInterface
 from cdisc_rules_engine.models.operation_params import OperationParams
 from cdisc_rules_engine.models.rule_conditions import AllowedConditionsKeys
+from cdisc_rules_engine.exceptions.custom_exceptions import OperationError
 from cdisc_rules_engine.operations import operations_factory
 from cdisc_rules_engine.services import logger
 from cdisc_rules_engine.utilities.data_processor import DataProcessor
 from cdisc_rules_engine.utilities.utils import (
     get_directory_path,
     get_operations_cache_key,
-    is_ap_domain,
     search_in_list_of_dicts,
     get_dataset_name_from_details,
 )
@@ -43,7 +44,6 @@ from cdisc_rules_engine.models.sdtm_dataset_metadata import SDTMDatasetMetadata
 from cdisc_rules_engine.interfaces.data_service_interface import (
     DataServiceInterface,
 )
-from cdisc_rules_engine.exceptions.custom_exceptions import DomainNotFoundError
 
 
 class RuleProcessor:
@@ -180,13 +180,32 @@ class RuleProcessor:
         supp_ap_domains.update({f"{AP_DOMAIN}--", f"{APFA_DOMAIN}--"})
 
         return any(set(domains_to_check).intersection(supp_ap_domains)) and (
-            dataset_metadata.is_supp
-            or is_ap_domain(
-                dataset_metadata.domain
-                or dataset_metadata.rdomain
-                or dataset_metadata.name
-            )
+            dataset_metadata.is_supp or dataset_metadata.is_ap
         )
+
+    def rule_applies_to_data_structure(
+        self, rule, datasets, dataset_metadata: SDTMDatasetMetadata
+    ):
+        datastructures = rule.get("data_structures") or {}
+        included_datastructures = datastructures.get("Include", [])
+        excluded_datastructures = datastructures.get("Exclude", [])
+        is_included = True
+        is_excluded = False
+        if not included_datastructures and not excluded_datastructures:
+            return True
+        if included_datastructures:
+            if ALL_KEYWORD in included_datastructures:
+                return True
+        ds = self.data_service.get_data_structure(
+            dataset_metadata.full_path,
+            datasets,
+            dataset_metadata,
+        )
+        if ds and (ds not in included_datastructures):
+            is_included = False
+        if ds and (ds in excluded_datastructures):
+            is_excluded = True
+        return is_included and not is_excluded
 
     def rule_applies_to_class(
         self,
@@ -231,7 +250,6 @@ class RuleProcessor:
                 class_name == FINDINGS_ABOUT and FINDINGS in included_classes
             ):
                 is_included = False
-
         if excluded_classes:
             variables = self.data_service.get_variables_metadata(
                 dataset_name=dataset_metadata.full_path, datasets=datasets
@@ -255,6 +273,7 @@ class RuleProcessor:
         rule: dict,
         standard: str,
         standard_substandard: str,
+        use_case: str,
     ) -> bool:
         if standard.lower() != "tig":
             return True
@@ -262,25 +281,7 @@ class RuleProcessor:
         if not use_cases:
             return True
         use_cases = [uc.strip() for uc in use_cases.split(",")]
-        substandard = standard_substandard.upper()
-        if substandard not in USE_CASE_DOMAINS:
-            return False
-
-        domain_to_check = dataset_metadata.domain
-        if dataset_metadata.is_supp and dataset_metadata.rdomain:
-            domain_to_check = dataset_metadata.rdomain
-
-        # Handle ADaM datasets with AD prefix
-        if substandard == "ADAM" and domain_to_check.startswith("AD"):
-            return "ANALYSIS" in use_cases
-
-        allowed_domains = set()
-        for use_case in use_cases:
-            if use_case in USE_CASE_DOMAINS[substandard]:
-                allowed_domains.update(USE_CASE_DOMAINS[substandard][use_case])
-        if domain_to_check in allowed_domains:
-            return True
-        return False
+        return use_case in use_cases
 
     @classmethod
     def rule_applies_to_entity(
@@ -351,57 +352,69 @@ class RuleProcessor:
 
             # get necessary operation
             operation_params = OperationParams(
+                attribute_name=operation.get("attribute_name", ""),
+                case_sensitive=operation.get("case_sensitive", True),
+                codelist=operation.get("codelist"),
+                codelist_code=operation.get("codelist_code"),
+                codelists=operation.get("codelists"),
                 core_id=rule.get("core_id"),
-                operation_id=operation.get("id"),
-                operation_name=operation.get("operator"),
-                dataframe=dataset_copy,
-                target=target,
-                original_target=original_target,
-                domain=domain,
-                dataset_path=dataset_path,
-                directory_path=get_directory_path(dataset_path),
-                datasets=datasets,
-                grouping=operation.get("group", []),
-                standard=standard,
-                standard_version=standard_version,
-                standard_substandard=standard_substandard,
-                external_dictionaries=external_dictionaries,
-                ct_version=operation.get("version"),
+                ct_attribute=operation.get("ct_attribute"),
                 ct_package_type=RuleProcessor._ct_package_type_api_name(
                     operation.get("ct_package_type")
                 ),
-                ct_attribute=operation.get("attribute"),
                 ct_package_types=[
                     RuleProcessor._ct_package_type_api_name(ct_package_type)
                     for ct_package_type in operation.get("ct_package_types", [])
                 ],
-                ct_packages=kwargs.get("ct_packages"),
-                ct_package=kwargs.get("codelist_term_maps"),
-                attribute_name=operation.get("attribute_name", ""),
-                key_name=operation.get("key_name", ""),
-                key_value=operation.get("key_value", ""),
-                case_sensitive=operation.get("case_sensitive", True),
-                external_dictionary_type=operation.get("external_dictionary_type"),
+                ct_version=operation.get("version"),
+                dataframe=dataset_copy,
+                dataset_path=dataset_path,
+                datasets=datasets,
+                delimiter=operation.get("delimiter"),
+                dictionary_term_type=operation.get("dictionary_term_type"),
+                directory_path=get_directory_path(dataset_path),
+                domain=domain,
+                domain_class=operation.get("domain_class"),
+                external_dictionaries=external_dictionaries,
                 external_dictionary_term_variable=operation.get(
                     "external_dictionary_term_variable"
                 ),
-                dictionary_term_type=operation.get("dictionary_term_type"),
+                external_dictionary_type=operation.get("external_dictionary_type"),
                 filter=operation.get("filter", None),
+                grouping=operation.get("group", []),
                 grouping_aliases=operation.get("group_aliases"),
+                key_name=operation.get("key_name", ""),
+                key_value=operation.get("key_value", ""),
                 level=operation.get("level"),
-                returntype=operation.get("returntype"),
-                codelists=operation.get("codelists"),
-                codelist=operation.get("codelist"),
-                codelist_code=operation.get("codelist_code"),
                 map=operation.get("map"),
+                namespace=operation.get("namespace"),
+                operation_id=operation.get("id"),
+                operation_name=operation.get("operator"),
+                original_target=original_target,
+                regex=operation.get("regex"),
+                returntype=operation.get("returntype"),
+                source=operation.get("source"),
+                standard=standard,
+                standard_substandard=standard_substandard,
+                standard_version=standard_version,
+                target=target,
                 term_code=operation.get("term_code"),
+                term_pref_term=operation.get("term_pref_term"),
                 term_value=operation.get("term_value"),
+                value_is_reference=operation.get("value_is_reference", False),
             )
-
-            # execute operation
-            dataset_copy = self._execute_operation(
-                operation_params, dataset_copy, previous_operations
-            )
+            try:
+                # execute operation
+                dataset_copy = self._execute_operation(
+                    operation_params, dataset_copy, previous_operations
+                )
+            except Exception as e:
+                raise OperationError(
+                    f"Failed to execute rule operation. "
+                    f"Operation: {operation_params.operation_name}, "
+                    f"Target: {target}, Domain: {domain}, "
+                    f"Error: {str(e)}"
+                )
             previous_operations.append(operation_params.operation_name)
 
             logger.info(
@@ -444,12 +457,21 @@ class RuleProcessor:
             # download other domain
             domain_details: dict = search_in_list_of_dicts(
                 operation_params.datasets,
-                lambda item: item.unsplit_name == operation_params.domain,
+                lambda item: (
+                    item.unsplit_name == operation_params.domain
+                    or (
+                        operation_params.domain.endswith("--")
+                        and item.unsplit_name.startswith(operation_params.domain[:-2])
+                    )
+                ),
             )
             if domain_details is None:
-                raise DomainNotFoundError(
-                    f"Operation {operation_params.operation_name} requires Domain "
-                    f"{operation_params.domain} but Domain not found in dataset"
+                raise OperationError(
+                    f"Failed to execute rule operation. "
+                    f"Domain {operation_params.domain} does not exist. "
+                    f"Operation: {operation_params.operation_name}, "
+                    f"Target: {operation_params.target}, "
+                    f"Core ID: {operation_params.core_id}"
                 )
             filename = get_dataset_name_from_details(domain_details)
             file_path: str = os.path.join(
@@ -566,6 +588,50 @@ class RuleProcessor:
             f"comparator={comparator}, conditions={rule['conditions']}"
         )
 
+    def _preprocess_operation_params(
+        self, operation_params: OperationParams, domain_details: dict = None
+    ) -> OperationParams:
+        # uses shallow copy to not overwrite for subsequent
+        # operations and avoids costly deepcopy of dataframe
+        params_copy = copy.copy(operation_params)
+        current_domain = params_copy.domain
+        if domain_details.is_supp:
+            current_domain = domain_details.rdomain
+        for param_name in vars(params_copy):
+            if param_name in ("datasets", "dataframe"):
+                continue
+            param_value = getattr(params_copy, param_name)
+            updated_value = self._replace_wildcards_in_value(
+                param_value, current_domain
+            )
+            if updated_value is not param_value:
+                updated_value = copy.deepcopy(updated_value)
+                setattr(params_copy, param_name, updated_value)
+        return params_copy
+
+    def _replace_wildcards_in_value(self, value, domain: str):
+        if value is None:
+            return value
+        if isinstance(value, str):
+            return value.replace("--", domain)
+        elif isinstance(value, list):
+            return [self._replace_wildcards_in_value(item, domain) for item in value]
+        elif isinstance(value, set):
+            return {self._replace_wildcards_in_value(item, domain) for item in value}
+        elif isinstance(value, dict):
+            return {
+                self._replace_wildcards_in_value(
+                    k, domain
+                ): self._replace_wildcards_in_value(v, domain)
+                for k, v in value.items()
+            }
+        elif isinstance(value, tuple):
+            return tuple(
+                self._replace_wildcards_in_value(item, domain) for item in value
+            )
+        else:
+            return value
+
     @staticmethod
     def duplicate_conditions_for_all_targets(
         conditions: ConditionInterface, targets: List[str]
@@ -587,6 +653,14 @@ class RuleProcessor:
             new_conditions_dict[key] = new_conditions_list
         return new_conditions_dict
 
+    @staticmethod
+    def log_suitable_for_validation(rule_id: str, dataset_name: str):
+        logger.info(
+            f"is_suitable_for_validation. rule id={rule_id}, "
+            f"dataset={dataset_name}, result=True"
+        )
+        return True, ""
+
     def is_suitable_for_validation(
         self,
         rule: dict,
@@ -594,6 +668,7 @@ class RuleProcessor:
         datasets: Iterable[SDTMDatasetMetadata],
         standard,
         standard_substandard: str,
+        use_case: str,
     ) -> Tuple[bool, str]:
         """Check if rule is suitable and return reason if not"""
         rule_id = rule.get("core_id", "unknown")
@@ -602,11 +677,27 @@ class RuleProcessor:
             reason = f"Rule skipped - invalid rule structure for rule id={rule_id}"
             logger.info(f"is_suitable_for_validation. {reason}, result=False")
             return False, reason
+        if (
+            rule.get("rule_type") == RuleTypes.JSONATA.value
+            and dataset_metadata.name == "json"
+        ):
+            return self.log_suitable_for_validation(rule_id, dataset_name)
         if not self.rule_applies_to_use_case(
-            dataset_metadata, rule, standard, standard_substandard
+            dataset_metadata,
+            rule,
+            standard,
+            standard_substandard,
+            use_case,
         ):
             reason = (
                 f"Rule skipped - doesn't apply to use case for "
+                f"rule id={rule_id}, dataset={dataset_name}"
+            )
+            logger.info(f"is_suitable_for_validation. {reason}, result=False")
+            return False, reason
+        if not self.rule_applies_to_data_structure(rule, datasets, dataset_metadata):
+            reason = (
+                f"Rule skipped - doesn't apply to data structure for "
                 f"rule id={rule_id}, dataset={dataset_name}"
             )
             logger.info(f"is_suitable_for_validation. {reason}, result=False")
@@ -632,16 +723,52 @@ class RuleProcessor:
             )
             logger.info(f"is_suitable_for_validation. {reason}, result=False")
             return False, reason
-        logger.info(
-            f"is_suitable_for_validation. rule id={rule_id}, "
-            f"dataset={dataset_name}, result=True"
-        )
-        return True, ""
+        return self.log_suitable_for_validation(rule_id, dataset_name)
+
+    @staticmethod
+    def _extract_targets_from_output_variables(rule: dict, domain: str) -> List[str]:
+        output_variables: List[str] = rule.get("output_variables", [])
+        target_names: List[str] = []
+        seen: set[str] = set()
+        for var in output_variables:
+            name = var.replace("--", domain or "", 1)
+            if name not in seen:
+                seen.add(name)
+                target_names.append(name)
+        return target_names
+
+    @staticmethod
+    def _extract_targets_from_conditions(
+        rule: dict, domain: str, column_names: List[str]
+    ) -> List[str]:
+        target_names: List[str] = []
+        seen: set[str] = set()
+        conditions: ConditionInterface = rule["conditions"]
+        for condition in conditions.values():
+            if condition.get("operator") == "not_exists":
+                continue
+            target: str = condition["value"].get("target")
+            if target is None:
+                continue
+            target = target.replace("--", domain or "")
+            op_related_pattern: str = RuleProcessor.get_operator_related_pattern(
+                condition.get("operator"), target
+            )
+            if op_related_pattern is not None:
+                for name in column_names:
+                    if re.match(op_related_pattern, name) and name not in seen:
+                        seen.add(name)
+                        target_names.append(name)
+            else:
+                if target not in seen:
+                    seen.add(target)
+                    target_names.append(target)
+        return target_names
 
     @staticmethod
     def extract_target_names_from_rule(
         rule: dict, domain: str, column_names: List[str]
-    ) -> Set[str]:
+    ) -> List[str]:
         r"""
         Extracts target from each item of condition list.
 
@@ -656,36 +783,11 @@ class RuleProcessor:
             pattern: ^TSVAL\d+$ (starts with TSVAL and ends with number)
             additional columns: TSVAL1, TSVAL2, TSVAL3 etc.
         """
-        output_variables: List[str] = rule.get("output_variables", [])
-        if output_variables:
-            target_names: List[str] = [
-                var.replace("--", domain or "", 1) for var in output_variables
-            ]
-        else:
-            target_names: List[str] = []
-            conditions: ConditionInterface = rule["conditions"]
-            for condition in conditions.values():
-                if condition.get("operator") == "not_exists":
-                    continue
-                target: str = condition["value"].get("target")
-                if target is None:
-                    continue
-                target = target.replace("--", domain or "")
-                op_related_pattern: str = RuleProcessor.get_operator_related_pattern(
-                    condition.get("operator"), target
-                )
-                if op_related_pattern is not None:
-                    # if pattern exists -> return only matching column names
-                    target_names.extend(
-                        filter(
-                            lambda name: re.match(op_related_pattern, name),
-                            column_names,
-                        )
-                    )
-                else:
-                    target_names.append(target)
-        target_names.sort()
-        return set(target_names)
+        if rule.get("output_variables"):
+            return RuleProcessor._extract_targets_from_output_variables(rule, domain)
+        return RuleProcessor._extract_targets_from_conditions(
+            rule, domain, column_names
+        )
 
     @staticmethod
     def extract_referenced_variables_from_rule(rule: dict):

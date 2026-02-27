@@ -190,18 +190,24 @@ def test_get_dataset_class(dataset_metadata, data, expected_class):
             "sdtmig",
             "3-4",
             None,
+            None,
             "",
             "",
             "",
             False,
             "",
             None,
+            None,
             "",
             "",
             None,
             "",
             None,
             False,
+            None,
+            None,
+            None,
+            None,
         )
     )
     data_service = LocalDataService(
@@ -241,7 +247,10 @@ def test_get_dataset_class_associated_domains():
     datasets = [
         SDTMDatasetMetadata(**dataset)
         for dataset in [
-            {"first_record": {"DOMAIN": "APDM"}, "filename": "apdm.xpt"},
+            {
+                "first_record": {"DOMAIN": "APDM", "APID": "AP001"},
+                "filename": "apdm.xpt",
+            },
             {"first_record": {"DOMAIN": "DM"}, "filename": "dm.xpt"},
         ]
     ]
@@ -267,18 +276,24 @@ def test_get_dataset_class_associated_domains():
                 "sdtmig",
                 "3-4",
                 None,
+                None,
                 "",
                 "",
                 "",
                 False,
                 "",
                 None,
+                None,
                 "",
                 "",
                 None,
                 "",
                 None,
                 False,
+                None,
+                None,
+                None,
+                None,
             )
         )
         data_service = LocalDataService(
