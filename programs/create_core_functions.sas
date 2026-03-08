@@ -47,11 +47,11 @@ proc fcmp outlib = macros.core_funcs.python;
   endfunc;
 
   subroutine core_update_cache(apikey $, cache_path $, custom_rules_directory $, custom_rule $, 
-     remove_custom_rules $, update_custom_rule $, custom_standard $, remove_custom_standard $);
+     remove_custom_rules $, update_custom_rule $, custom_standard $, custom_standard_encoding $,remove_custom_standard $);
     declare object py(python);
     submit into py("&project_folder/python/core_update_cache.py");
     rc = py.publish();
-    rc = py.call('core_update_cache', apikey, cache_path, custom_rules_directory, custom_rule, remove_custom_rules, update_custom_rule, custom_standard, remove_custom_standard);
+    rc = py.call('core_update_cache', apikey, cache_path, custom_rules_directory, custom_rule, remove_custom_rules, update_custom_rule, custom_standard, custom_standard_encoding, remove_custom_standard);
   endsub;
 
   subroutine core_list_ct(subsets $, output $, cache_path $);

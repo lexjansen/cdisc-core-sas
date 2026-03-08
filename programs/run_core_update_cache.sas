@@ -28,7 +28,7 @@
 %core_update_cache(
   /* apikey= <your API key>, */
   cache_path = &project_folder/resources/cache,
-  update_custom_rule='./testdata/rules/CUSTOM-001.yml'
+  update_custom_rule= &project_folder/testdata/rules/CUSTOM-001.yml
   );
 
 %core_update_cache(
