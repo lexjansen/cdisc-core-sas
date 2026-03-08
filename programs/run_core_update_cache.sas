@@ -28,12 +28,17 @@
 %core_update_cache(
   /* apikey= <your API key>, */
   cache_path = &project_folder/resources/cache,
-  remove_custom_standard = "mycustom/1-0"
+  update_custom_rule='./testdata/rules/CUSTOM-001.yml'
   );
 
 %core_update_cache(
   /* apikey= <your API key>, */
   cache_path = &project_folder/resources/cache,
-  custom_standard = &project_folder/testdata/rules/custom_standard.json
+  custom_standard = &project_folder/testdata/standards/custom_standard.json
   );
 
+%core_update_cache(
+  /* apikey= <your API key>, */
+  cache_path = &project_folder/resources/cache,
+  remove_custom_standard = "mycustom/1-0"
+  );
