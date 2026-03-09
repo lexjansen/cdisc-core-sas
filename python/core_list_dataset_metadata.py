@@ -1,4 +1,6 @@
-def core_list_dataset_metadata(dataset_path, output: str):
+def core_list_dataset_metadata(
+    dataset_path, output: str
+):
     """Output: """
 
     """

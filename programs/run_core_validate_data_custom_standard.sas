@@ -15,7 +15,7 @@
     (&project_folder/testdata/sdtm/dm.xpt, &project_folder/testdata/sdtm/vs.xpt),
   standard = mycustom,
   version = 1-0,
-  output= &project_folder/reports/&report_name._mycustom_1-0_local,
+  output= &project_folder/reports/&report_name._mycustom_1-0,
   output_format = %str(XLSX, JSON),
   raw_report = 0,
   define_xml_path = &project_folder/testdata/sdtm/define.xml,
@@ -28,5 +28,5 @@
   snomed_version = 2024-09-01,
   snomed_edition = SNOMEDCT-US,
   rules =,
-  local_rules = &project_folder/testdata/rules/custom_standard.json
+  custom_standard=1
   );

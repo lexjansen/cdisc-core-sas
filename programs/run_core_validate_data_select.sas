@@ -40,5 +40,6 @@ options noquotelenmax;
   unii = &project_folder/testdata/dictionaries/unii,
   snomed_version = 2024-09-01,
   snomed_edition = SNOMEDCT-US,
-  rules = "&core_rules"
+  rules = "&core_rules",
+  max_errors_per_rule = %str(10 1)
   );

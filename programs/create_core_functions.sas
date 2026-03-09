@@ -28,20 +28,20 @@ proc fcmp outlib = macros.core_funcs.python;
   endfunc;
 
   function core_validate_data(
-    cache $, pool_size, data $, dataset_path $, log_level $, report_template $,
-    standard $, version $, substandard $, output $, output_format $, raw_report,
+    cache $, pool_size, data $, filetype $, dataset_path $, log_level $, report_template $,
+    standard $, version $, substandard $, use_case $, output $, output_format $, raw_report,
     controlled_terminology_package $, define_version $, define_xml_path $, validate_xml $,
     whodrug $, meddra $, loinc $, medrt $, unii $, snomed_version $, snomed_edition $, snomed_url $,
-    rules $, local_rules $, custom_standard) $ 128;
+    rules $, exclude_rules $, local_rules $, custom_standard, jsonata_custom_functions $, max_report_rows, max_errors_per_rule $, encoding $) $ 128;
     length message $ 128;
     declare object py(python);
     submit into py("&project_folder/python/core_validate_data.py");
     rc = py.publish();
     rc = py.call('core_validate_data',
-      cache, pool_size, data, dataset_path, log_level, report_template, standard,
-      version, substandard, output, output_format, raw_report, controlled_terminology_package,
+      cache, pool_size, data, filetype, dataset_path, log_level, report_template, standard,
+      version, substandard, use_case, output, output_format, raw_report, controlled_terminology_package,
       define_version, define_xml_path, validate_xml, whodrug, meddra, loinc, medrt, unii, snomed_version, snomed_edition, snomed_url,
-      rules, local_rules, custom_standard);
+      rules, exclude_rules, local_rules, custom_standard, jsonata_custom_functions, max_report_rows, max_errors_per_rule, encoding);
     message = py.results['message_return_value'];
     return(message);
   endfunc;

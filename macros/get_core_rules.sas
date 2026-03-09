@@ -1,9 +1,20 @@
-%macro get_core_rules(core_standard=, core_standard_version=, core_substandard=, core_custom_rules=0, core_rule_id=, dsout=metadata.core_rules, json_folder=&project_folder/json);
+%macro get_core_rules(
+  core_standard=, 
+  core_standard_version=, 
+  core_substandard=, 
+  core_custom_rules=0, 
+  core_rule_id=, 
+  dsout=metadata.core_rules, 
+  json_folder=&project_folder/json
+  );
 
   %local jsonfile;
   
-  %let jsonfile = core_rules_&core_standard.-%sysfunc(tranwrd(&core_standard_version, %str(/), %str(-))).json;
-
+  %if %sysevalf(%superq(core_substandard)=, boolean) %then
+    %let jsonfile = core_rules_&core_standard.-%sysfunc(tranwrd(&core_standard_version, %str(/), %str(-))).json;
+  %else
+    %let jsonfile = core_rules_&core_standard.-%sysfunc(tranwrd(&core_standard_version, %str(/), %str(-)))-&core_substandard..json;
+      
   filename rules "&json_folder/&jsonfile";
 
   %core_list_rules(
@@ -123,6 +134,7 @@
     as select
       "&core_standard" as core_standard length = 32,
       "&core_standard_version" as core_standard_version length = 32,
+      "&core_substandard" as core_substandard length = 32,
       root.*
       , params.message
       , standards._standards as standards
@@ -157,7 +169,11 @@
     set &dsout work._core_rules;
   run;  
   
-  ods excel options(sheet_name = "&core_standard &core_standard_version" flow = "tables" autofilter = 'all');
+  %if %sysevalf(%superq(core_substandard)=, boolean) %then
+    ods excel options(sheet_name = "&core_standard &core_standard_version" flow = "tables" autofilter = 'all');
+  %else  
+    ods excel options(sheet_name = "&core_standard &core_standard_version &core_substandard" flow = "tables" autofilter = 'all');
+  ;
   
   proc print data = work._core_rules;
     title "CORE Rules %sysfunc(date(), e8601da.)";

@@ -579,51 +579,62 @@ if __name__ == "__main__":
 
     version()
 
-    list_dataset_metadata(
-        output="./json/core_dataset_metadata_xpt.json",
-        dataset_path=[
-            './testdata/sdtm/dm.xpt',
-            './testdata/sdtm/ae.xpt',
-            './testdata/sdtm/ex.xpt',
-            './testdata/sdtm/lb.xpt'
-        ]
-    )
-
-    list_dataset_metadata(
-        output="./json/core_dataset_metadata_json.json",
-        dataset_path=[
-            './testdata/sdtm_json/dm.json',
-            './testdata/sdtm_json/ae.json',
-            './testdata/sdtm_json/ex.json',
-            './testdata/sdtm_json/lb.json'
-        ]
-    )
-
-    exit()
-
+    # Update cache
     update_cache(
         apikey=os.environ.get("CDISC_LIBRARY_API_KEY"),
         cache_path='./resources/cache'
     )
 
-    update_cache(
-        apikey=os.environ.get("CDISC_LIBRARY_API_KEY"),
-        cache_path='./resources/cache',
-        remove_custom_rules='ALL'
-    )
-
+    # Add custom rules
     update_cache(
         apikey=os.environ.get("CDISC_LIBRARY_API_KEY"),
         cache_path='./resources/cache',
         custom_rules_directory='./testdata/rules'
     )
 
+    # Update custom rule
     update_cache(
         apikey=os.environ.get("CDISC_LIBRARY_API_KEY"),
         cache_path='./resources/cache',
         update_custom_rule='./testdata/rules/CUSTOM-001.yml'
     )
 
+    # Add custom standard
+    update_cache(
+        apikey=os.environ.get("CDISC_LIBRARY_API_KEY"),
+        cache_path='./resources/cache',
+        custom_standard='./testdata/standards/custom_standard.json'
+    )
+
+    # Remove custom rule
+    update_cache(
+        apikey=os.environ.get("CDISC_LIBRARY_API_KEY"),
+        cache_path='./resources/cache',
+        remove_custom_rules='CUSTOM-001'
+    )
+
+    # Remove custom rules
+    update_cache(
+        apikey=os.environ.get("CDISC_LIBRARY_API_KEY"),
+        cache_path='./resources/cache',
+        remove_custom_rules='ALL'
+    )
+
+    # Remove custom standard
+    update_cache(
+        apikey=os.environ.get("CDISC_LIBRARY_API_KEY"),
+        cache_path='./resources/cache',
+        remove_custom_standard=['mycustom/1-0']
+    )
+
+    # Add custom rules
+    update_cache(
+        apikey=os.environ.get("CDISC_LIBRARY_API_KEY"),
+        cache_path='./resources/cache',
+        custom_rules_directory='./testdata/rules'
+    )
+
+    # Add custom standard
     update_cache(
         apikey=os.environ.get("CDISC_LIBRARY_API_KEY"),
         cache_path='./resources/cache',
@@ -631,7 +642,7 @@ if __name__ == "__main__":
     )
 
     list_rule_sets(cache_path='./resources/cache', output="./json/core_rule_sets.json")
-    list_rule_sets(cache_path='./resources/cache', custom=True, output="./json/core_rule_sets_custom.json")
+    list_rule_sets(cache_path='./resources/cache', output="./json/core_rule_sets_custom.json", custom=True)
 
     list_rules(
         cache_path='./resources/cache',
@@ -670,16 +681,10 @@ if __name__ == "__main__":
         custom_rules=True
     )
 
-    update_cache(
-        apikey=os.environ.get("CDISC_LIBRARY_API_KEY"),
-        cache_path='./resources/cache',
-        remove_custom_standard=['mycustom/1-0']
-    )
-
     list_ct(output="./json/core_ct.json", subsets=[])
 
     list_dataset_metadata(
-        output="./json/core_dataset_metadata.json",
+        output="./json/core_dataset_metadata_xpt.json",
         dataset_path=[
             './testdata/sdtm/dm.xpt',
             './testdata/sdtm/ae.xpt',
@@ -688,7 +693,15 @@ if __name__ == "__main__":
         ]
     )
 
-    exit()
+    list_dataset_metadata(
+        output="./json/core_dataset_metadata_json.json",
+        dataset_path=[
+            './testdata/sdtm_json/dm.json',
+            './testdata/sdtm_json/ae.json',
+            './testdata/sdtm_json/ex.json',
+            './testdata/sdtm_json/lb.json'
+        ]
+    )
 
     validate(
         standard='sdtmig',
@@ -718,7 +731,8 @@ if __name__ == "__main__":
         unii='./testdata/dictionaries/unii',
         snomed_version='2024-09-01',
         snomed_edition='SNOMEDCT-US',
-        progress='bar'
+        progress='bar',
+        max_errors_per_rule=(10, True)
     )
 
     validate(
@@ -743,8 +757,8 @@ if __name__ == "__main__":
     )
 
     validate(
-        standard='sdtmig',
-        version='3-2',
+        standard='mycustom',
+        version='1-0',
         cache='./resources/cache',
         data='./testdata/sdtm',
         report_template='./resources/templates/report-template.xlsx',
@@ -752,8 +766,7 @@ if __name__ == "__main__":
         raw_report=False,
         output='./reports/' + generate_report_filename(datetime.now().isoformat()) + '_custom',
         rules=[],
-        local_rules='./testdata/rules',
-        custom_standard=False,
+        custom_standard=True,
         define_xml_path='./testdata/sdtm/define.xml',
         whodrug='./testdata/dictionaries/whodrug',
         meddra='./testdata/dictionaries/meddra',
@@ -765,4 +778,4 @@ if __name__ == "__main__":
         progress='bar'
     )
 
-    test_validate()
+    test_validate('xpt')

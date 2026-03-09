@@ -9,7 +9,7 @@
 
 filename rules "&project_folder/json/core_rules_sdtmig-3-2-custom.json";
 
-%*core_list_rules(
+%core_list_rules(
   output =  %sysfunc(pathname(rules)),
   standard = %str(sdtmig),
   version = %str(3-2),
@@ -49,9 +49,9 @@ data _null_;
   length code $ 1024;
   if upcase(standard) = "USDM" then
   %* For DDF only get JSON ;
-    code = cats('%nrstr(%get_core_rules(core_standard=', lowcase(standard), ', core_standard_version=', version, ', dsout=));');
+    code = cats('%nrstr(%get_core_rules(core_standard=', lowcase(standard), ', core_substandard=', lowcase(substandard), ', core_standard_version=', version, ', dsout=));');
   else
-    code = cats('%nrstr(%get_core_rules(core_standard=', lowcase(standard), ', core_standard_version=', version, '));');
+    code = cats('%nrstr(%get_core_rules(core_standard=', lowcase(standard), ', core_substandard=', lowcase(substandard), ', core_standard_version=', version, '));');
   put code=;
   call execute(code);
 run;
