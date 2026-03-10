@@ -13,6 +13,7 @@
   pool_size = 10,
   dataset_path = %str
     (&project_folder/testdata/sdtm/dm.xpt, &project_folder/testdata/sdtm/vs.xpt),
+  report_template=&project_folder/resources/templates/report-template.xlsx,
   standard = mycustom,
   version = 1-0,
   output= &project_folder/reports/&report_name._mycustom_1-0,

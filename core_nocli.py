@@ -778,4 +778,18 @@ if __name__ == "__main__":
         progress='bar'
     )
 
+    validate(
+        standard='usdm',
+        version='4-0',
+        cache='./resources/cache',
+        dataset_path=['./testdata/usdm_data/USDM_Test_Suite_positive.json'],
+        report_template='./resources/templates/usdm-report-template.xlsx',
+        output_format=['JSON', 'XLSX'],
+        raw_report=False,
+        output='./reports/' + generate_report_filename(datetime.now().isoformat()) + '_usdm',
+        rules=[],
+        custom_standard=False,
+        progress='bar'
+    )
+
     test_validate('xpt')
