@@ -1,9 +1,6 @@
 from cdisc_rules_engine.models.operation_params import OperationParams
 from cdisc_rules_engine.constants.permissibility import (
-    REQUIRED,
     PERMISSIBLE,
-    REQUIRED_MODEL_VARIABLES,
-    SEQ_VARIABLE,
     PERMISSIBILITY_KEY,
 )
 from abc import abstractmethod
@@ -37,6 +34,8 @@ from cdisc_rules_engine.exceptions.custom_exceptions import (
     InvalidDictionaryVariable,
     UnsupportedDictionaryType,
     FailedSchemaValidation,
+    SchemaNotFoundError,
+    InvalidSchemaProvidedError,
 )
 
 
@@ -85,6 +84,8 @@ class BaseOperation:
             InvalidDictionaryVariable,
             UnsupportedDictionaryType,
             FailedSchemaValidation,
+            SchemaNotFoundError,
+            InvalidSchemaProvidedError,
         ) as e:
             logger.debug(f"error in operation {self.params.operation_name}: {str(e)}")
             raise
@@ -139,6 +140,10 @@ class BaseOperation:
             result = self._rename_grouping_columns(result)
         grouping_columns = self._get_grouping_columns()
         target_columns = grouping_columns + [self.params.operation_id]
+        target_columns = self._resolve_variable_name(target_columns, self.params.domain)
+        grouping_columns = self._resolve_variable_name(
+            grouping_columns, self.params.domain
+        )
         result = result.reset_index()
         merged = self.evaluation_dataset.merge(
             result[target_columns], on=grouping_columns, how="left"
@@ -168,10 +173,10 @@ class BaseOperation:
     def _is_wildcard_pattern(self, value: str) -> bool:
         if not isinstance(value, str):
             return False
-        return value.endswith("%")
+        return value.endswith("&")
 
     def _apply_wildcard_filter(self, series: pd.Series, pattern: str) -> pd.Series:
-        prefix = pattern.rstrip("%")
+        prefix = pattern.rstrip("&")
         result = series.str.startswith(prefix, na=False)
         return result
 
@@ -187,93 +192,59 @@ class BaseOperation:
         )
 
     def _get_grouping_columns(self) -> List[str]:
-        if any(item.startswith("$") for item in self.params.grouping):
-            return self._expand_operation_results_in_grouping(self.params.grouping)
+        expanded = self._expand_operation_results_in_grouping(self.params.grouping)
+        if not self.params.grouping_aliases:
+            return expanded
         else:
-            return (
-                self.params.grouping
-                if not self.params.grouping_aliases
-                else [
-                    (
-                        self.params.grouping_aliases[i]
-                        if 0 <= i < len(self.params.grouping_aliases)
-                        else v
-                    )
-                    for i, v in enumerate(self.params.grouping)
-                ]
-            )
+            return [
+                (
+                    self.params.grouping_aliases[i]
+                    if 0 <= i < len(self.params.grouping_aliases)
+                    else v
+                )
+                for i, v in enumerate(expanded)
+            ]
 
     def _expand_operation_results_in_grouping(self, grouping_list):
         expanded = []
         for item in grouping_list:
-            if item.startswith("$") and item in self.evaluation_dataset.columns:
+            if item in self.evaluation_dataset.columns:
                 operation_col = self.evaluation_dataset[item]
                 first_val = operation_col.iloc[0]
-                if operation_col.astype(str).nunique() == 1:
-                    if isinstance(first_val, (list, tuple)):
-                        expanded.extend(first_val)
-                    else:
-                        expanded.append(item)
+                if (
+                    isinstance(first_val, (list, tuple))
+                    and operation_col.astype(str).nunique() == 1
+                ):
+                    expanded.extend(first_val)
                 else:
-                    expanded.extend(self._collect_values_from_column(operation_col))
+                    expanded.append(item)
             else:
                 expanded.append(item)
         return list(dict.fromkeys(expanded))
 
-    def _collect_values_from_column(self, operation_col):
-        seen = []
-        for val in operation_col:
-            if val is not None:
-                if isinstance(val, (list, tuple)):
-                    for v in val:
-                        if v not in seen:
-                            seen.append(v)
-                else:
-                    if val not in seen:
-                        seen.append(val)
-        return seen
-
     def _get_variables_metadata_from_standard(self) -> List[dict]:
         # TODO: Update to handle other standard types: adam, cdash, etc.
-        target_metadata = None
-        for ds in self.params.datasets:
-            if ds.unsplit_name == self.params.domain:
-                target_metadata = ds
-                break
-        if (
-            target_metadata
-            and hasattr(target_metadata, "is_supp")
-            and target_metadata.is_supp
-        ):
-            domain_for_library = "SUPPQUAL"
-        elif target_metadata and "rel" in target_metadata.name.lower():
-            if target_metadata.name.lower().startswith(
-                "ap"
-            ) and target_metadata.name.lower()[2:].startswith("rel"):
-                domain_for_library = target_metadata.name[2:]
-            else:
-                domain_for_library = target_metadata.name
-        else:
-            domain_for_library = self.params.domain
+
+        # self.params.domain is unsplit_name
+        domain_for_library = self.params.domain
         return sdtm_utilities.get_variables_metadata_from_standard(
-            domain_for_library,
-            self.library_metadata,
+            domain=domain_for_library,
+            library_metadata=self.library_metadata,
+            data_service=self.data_service,
+            dataset=self.evaluation_dataset,
+            dataset_metadata=self.data_service.get_raw_dataset_metadata(
+                dataset_name=self.params.dataset_path, datasets=self.params.datasets
+            ),
+            datasets=self.params.datasets,
+            dataset_path=self.params.dataset_path,
         )
 
     def get_allowed_variable_permissibility(self, variable_metadata: dict):
         """
         Returns the permissibility value of a variable allowed in the current domain
         """
-        variable_name = variable_metadata.get("name")
         if PERMISSIBILITY_KEY in variable_metadata:
             return variable_metadata[PERMISSIBILITY_KEY]
-        elif variable_name in REQUIRED_MODEL_VARIABLES:
-            return REQUIRED
-        elif variable_name.replace("--", self.params.domain) == SEQ_VARIABLE.replace(
-            "--", self.params.domain
-        ):
-            return REQUIRED
-
         return PERMISSIBLE
 
     def _get_variable_names_list(self, domain, dataframe):
@@ -322,8 +293,24 @@ class BaseOperation:
             dataset_path=self.params.dataset_path,
             data_service=self.data_service,
             library_metadata=self.library_metadata,
+            dataset_metadata=self.data_service.get_raw_dataset_metadata(
+                dataset_name=self.params.dataset_path, datasets=self.params.datasets
+            ),
         )
 
     @staticmethod
     def _replace_variable_wildcards(variables_metadata, domain):
         return [var["name"].replace("--", domain) for var in variables_metadata]
+
+    @staticmethod
+    def _resolve_variable_name(variable_name, domain: str):
+        if isinstance(variable_name, list):
+            return [
+                var.replace("--", domain) if "--" in var else var
+                for var in variable_name
+            ]
+        return (
+            variable_name.replace("--", domain)
+            if "--" in variable_name
+            else variable_name
+        )

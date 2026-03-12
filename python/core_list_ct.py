@@ -1,4 +1,8 @@
-def core_list_ct(subsets, output: str, cache_path: str):
+def core_list_ct(
+    subsets, 
+    output: str, 
+    cache_path: str
+):
     """Output: """
 
     """

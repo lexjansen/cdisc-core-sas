@@ -12,6 +12,7 @@
   cache_path = &project_folder/resources/cache,
   pool_size = 10,
   data= &project_folder/testdata/sdtm,
+  report_template=&project_folder/resources/templates/report-template.xlsx,
   standard = sdtmig,
   version = 3-3,
   output= &project_folder/reports/&report_name._sdtmig_3-3,

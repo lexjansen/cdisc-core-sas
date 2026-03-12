@@ -1,4 +1,14 @@
-def core_update_cache(apikey, cache_path, custom_rules_directory, custom_rule, remove_custom_rules, update_custom_rule, custom_standard, remove_custom_standard):
+def core_update_cache(
+    apikey, 
+    cache_path, 
+    custom_rules_directory, 
+    custom_rule, 
+    remove_custom_rules, 
+    update_custom_rule, 
+    custom_standard, 
+    custom_standard_encoding, 
+    remove_custom_standard
+):
     """Output: """
 
     import os
@@ -24,6 +34,12 @@ def core_update_cache(apikey, cache_path, custom_rules_directory, custom_rule, r
     from cdisc_rules_engine.services.cache.cache_populator_service import CachePopulator
     from cdisc_rules_engine.services.cache.cache_service_factory import CacheServiceFactory
     from cdisc_rules_engine.services.cdisc_library_service import CDISCLibraryService
+    from cdisc_rules_engine.utilities.utils import (
+        get_rules_cache_key,
+)
+    DEFAULT_CACHE_PATH = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), DefaultFilePaths.CACHE.value
+    )
 
     def update_cache(
         apikey: str,
@@ -39,18 +55,28 @@ def core_update_cache(apikey, cache_path, custom_rules_directory, custom_rule, r
         remove_custom_standard = [item.strip(' ') for item in remove_custom_standard if item !='']
           
         cache = CacheServiceFactory(config).get_cache_service()
-        library_service = CDISCLibraryService(apikey, cache)
+        # CDISC library service should log failed requests instead of failing the
+        # cache update process
+        library_service = CDISCLibraryService(apikey, cache, raise_on_error=False)
+        update_rules_only = not apikey
         cache_populator = CachePopulator(
-          cache,
-          library_service,
-          custom_rules_directory,
-          custom_rule,
-          remove_custom_rules,
-          update_custom_rule,
-          custom_standard,
-          remove_custom_standard,
-          cache_path,
+            cache,
+            library_service,
+            custom_rules_directory,
+            custom_rule,
+            remove_custom_rules,
+            update_custom_rule,
+            custom_standard,
+            custom_standard_encoding,
+            remove_custom_standard,
+            cache_path,
+            rules_only=update_rules_only,
         )
+    
+        if update_rules_only:
+            logger = logging.getLogger("validator")
+            logger.warning("API key was not provided. Only CORE rules will be updated.")
+    
         if custom_rule or custom_rules_directory:
             cache_populator.add_custom_rules()
         elif remove_custom_rules:
@@ -63,9 +89,9 @@ def core_update_cache(apikey, cache_path, custom_rules_directory, custom_rule, r
             cache_populator.remove_custom_standards_from_cache()
         else:
             asyncio.run(cache_populator.update_cache())
-
-        print("Cache updated successfully")
-
+    
+        print("Cache update complete")
+    
     update_cache(
         apikey=apikey,
         cache_path=cache_path,

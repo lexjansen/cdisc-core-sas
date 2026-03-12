@@ -7,6 +7,7 @@
 @param remove_custom_rules -optional - Remove rules from the cache. Can be a single rule ID, a comma-separated list of IDs, or 'ALL' to remove all custom rules.                             
 @param update_custom_rule -optional - Relative path to rule file in yaml or JSON formats Rule will be updated in cache with this file.
 @param custom_standard -optional - Relative path to JSON file containing custom standard details. Will update the standard if it already exists.                  
+@param custom_standard_encoding - optionLal - Encoding for custom standard details.
 @param remove_custom_standard -optional - Removes a custom standard and version from the cache.                                   
 **/
 
@@ -18,6 +19,7 @@
   remove_custom_rules =, 
   update_custom_rule =, 
   custom_standard =, 
+  custom_standard_encoding =,
   remove_custom_standard =
   );
 
@@ -56,7 +58,7 @@
   data _null_;
     call core_update_cache("&apikey", "&cache_path", 
                            "&custom_rules_directory", "&custom_rule", "&remove_custom_rules", "&update_custom_rule", 
-                           "&custom_standard", "&remove_custom_standard");
+                           "&custom_standard", "&custom_standard_encoding", "&remove_custom_standard");
   run;
 
   %exit_macro:

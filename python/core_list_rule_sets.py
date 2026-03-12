@@ -1,4 +1,8 @@
-def core_list_rule_sets(output: str, cache_path: str, custom: bool):
+def core_list_rule_sets(
+    output: str, 
+    cache_path: str, 
+    custom: bool
+):
     """Output: """
     
     """
@@ -36,19 +40,18 @@ def core_list_rule_sets(output: str, cache_path: str, custom: bool):
             standard = parts[0]
             version = parts[1]
             substandard = parts[2] if len(parts) > 2 else None
-            if substandard:
-                version_key = f"{version}/{substandard}"
-            else:
-                version_key = version
             if standard not in rule_sets:
                 rule_sets[standard] = set()
-            rule_sets[standard].add(version_key)
-
+            rule_sets[standard].add((version, substandard))
     for standard in sorted(rule_sets.keys()):
-        versions = sorted(rule_sets[standard])
-        for version in versions:
-            print(f"{standard.upper()}, {version}")
-            report_data.append(f"{standard.upper()}, {version}")
+        versions = sorted(rule_sets[standard], key=lambda x: (x[0], x[1] or ""))
+        for version, substandard in versions:
+            if substandard:
+                print(f"{standard}, {version}, {substandard}")
+                report_data.append(f"{standard}, {version}, {substandard}")
+            else:
+                print(f"{standard}, {version}")
+                report_data.append(f"{standard}, {version}")
 
     with open(output, "w") as f:
         json.dump(report_data, f)

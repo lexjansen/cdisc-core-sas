@@ -19,6 +19,14 @@ from cdisc_rules_engine.constants.classes import (
     INTERVENTIONS,
     RELATIONSHIP,
 )
+from cdisc_rules_engine.constants.data_structures import (
+    ADSL,
+    BDS,
+    OCCDS,
+    OTHER,
+    bds_indicators,
+    occds_indicators,
+)
 from cdisc_rules_engine.models.dataset_metadata import DatasetMetadata
 from cdisc_rules_engine.models.dataset_types import DatasetTypes
 from cdisc_rules_engine.services import logger
@@ -56,7 +64,7 @@ def cached_dataset(dataset_type: str):
             instance: BaseDataService = args[0]
             dataset_name: str = kwargs["dataset_name"]
             logger.info(
-                f"Downloading dataset from storage. dataset_name={dataset_name},"
+                f"Downloading dataset from storage. dataset_name={dataset_name}, "
                 f" wrapped function={func.__name__}"
             )
             cache_key: str = get_dataset_cache_key_from_path(dataset_name, dataset_type)
@@ -175,9 +183,29 @@ class BaseDataService(DataServiceInterface, ABC):
             name = class_data.get("name")
             if name:
                 return convert_library_class_name_to_ct_class(name)
-        return self._handle_special_cases(
+        return self._handle_custom_domains(
             dataset, dataset_metadata, file_path, datasets
         )
+
+    def get_data_structure(
+        self,
+        file_path: str,
+        datasets: Iterable[SDTMDatasetMetadata],
+        dataset_metadata: SDTMDatasetMetadata,
+    ) -> Optional[str]:
+        # TODO: look at defineXML if applicable for more accurate data structure detection
+        if dataset_metadata.name.upper() == "ADSL":
+            return ADSL
+        columns = dataset_metadata.data.columns.tolist()
+        columns_upper = [col.upper() for col in columns]
+        if any(indicator in columns_upper for indicator in bds_indicators):
+            return BDS
+        occds_suffixes = [indicator.replace("--", "") for indicator in occds_indicators]
+        if any(
+            col.endswith(suffix) for col in columns_upper for suffix in occds_suffixes
+        ):
+            return OCCDS
+        return OTHER
 
     @cached_dataset(DatasetTypes.METADATA.value)
     def get_dataset_metadata(
@@ -195,10 +223,13 @@ class BaseDataService(DataServiceInterface, ABC):
             "dataset_name": [dataset_metadata.name],
             "dataset_label": [dataset_metadata.label],
             "record_count": [dataset_metadata.record_count],
+            "is_ap": [dataset_metadata.is_ap],
+            "ap_suffix": [dataset_metadata.ap_suffix],
+            "domain": [dataset_metadata.domain],
         }
         return self.dataset_implementation.from_dict(metadata_to_return)
 
-    def _handle_special_cases(
+    def _handle_custom_domains(
         self,
         dataset: DatasetInterface,
         dataset_metadata: SDTMDatasetMetadata,
@@ -215,38 +246,37 @@ class BaseDataService(DataServiceInterface, ABC):
             if self._contains_topic_variable(dataset, dataset_metadata.domain, "OBJ"):
                 return FINDINGS_ABOUT
             return FINDINGS
-        if self._is_associated_persons(dataset):
+        if dataset_metadata.is_ap:
             return self._get_associated_persons_inherit_class(
-                file_path, datasets, dataset_metadata.domain
+                file_path, datasets, dataset_metadata
             )
         return None
 
-    def _is_associated_persons(self, dataset) -> bool:
-        """
-        Check if AP-- domain.
-        """
-        return "APID" in dataset
-
     def _get_associated_persons_inherit_class(
-        self, file_path, datasets: Iterable[SDTMDatasetMetadata], domain: str
+        self,
+        file_path,
+        datasets: Iterable[SDTMDatasetMetadata],
+        dataset_metadata: SDTMDatasetMetadata,
     ):
         """
         Check with inherit class AP-- belongs to.
         """
-        ap_suffix = domain[2:]
+        ap_suffix = dataset_metadata.ap_suffix
+        if not ap_suffix:
+            return None
         directory_path = get_directory_path(file_path)
         if len(datasets) > 1:
             domain_details: SDTMDatasetMetadata = search_in_list_of_dicts(
                 datasets, lambda item: item.domain == ap_suffix
             )
             if domain_details:
+                if domain_details.is_ap:
+                    raise ValueError("Nested Associated Persons domain reference")
                 file_name = domain_details.filename
                 new_file_path = os.path.join(directory_path, file_name)
                 new_domain_dataset = self.get_dataset(dataset_name=new_file_path)
             else:
                 raise ValueError("Filename for domain doesn't exist")
-            if self._is_associated_persons(new_domain_dataset):
-                raise ValueError("Nested Associated Persons domain reference")
             return self.get_dataset_class(
                 new_domain_dataset,
                 new_file_path,

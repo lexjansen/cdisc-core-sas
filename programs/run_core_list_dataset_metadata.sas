@@ -6,41 +6,48 @@
 
 %include "&project_folder/programs/config.sas";
 
-filename meta "&project_folder/json/core_dataset_metadata.json";
+%macro list_metadata(file_type=, sub_folder=);
 
-%core_list_dataset_metadata(
-  dataset_path = %str
-    (&project_folder/testdata/sdtm/dm.xpt, 
-     &project_folder/testdata/sdtm/ae.xpt, 
-     &project_folder/testdata/sdtm/ex.xpt, 
-     &project_folder/testdata/sdtm/lb.xpt),
-    output =  %sysfunc(pathname(meta))
-  );
+    filename meta "&project_folder/json/core_dataset_metadata_&file_type..json";
 
-data _null_;
-   rc = jsonpp('meta','log');
-run;
+    %core_list_dataset_metadata(
+        dataset_path = %str
+            (
+                &project_folder/testdata/&sub_folder/dm.&file_type,
+                &project_folder/testdata/&sub_folder/ae.&file_type,
+                &project_folder/testdata/&sub_folder/ex.&file_type,
+                &project_folder/testdata/&sub_folder/lb.&file_type
+            ),
+        output =  %sysfunc(pathname(meta))
+    );
 
-libname jsonfile json fileref=meta ordinalcount=none;
+    data _null_;
+      rc = jsonpp('meta','log');
+    run;
 
-data metadata.core_dataset_metadata;
-  set jsonfile.root;
-run;
+    libname jsonfile json fileref=meta ordinalcount=none;
 
-filename meta clear;
-libname jsonfile clear;
+    data metadata.core_dataset_metadata_&file_type;
+      set jsonfile.root;
+    run;
 
-ods listing close;
-ods html5 file = "&project_folder/reports/core_dataset_metadata.html";
-ods excel file = "&project_folder/reports/core_dataset_metadata.xlsx" 
-  options(sheet_name = "Datasets Metadata %sysfunc(date(), e8601da.)" flow = "tables" autofilter = 'all');
+    filename meta clear;
+    libname jsonfile clear;
 
-  proc print data = metadata.core_dataset_metadata;
-    title "Datasets Metadata %sysfunc(date(), e8601da.)";
-  run;
+    ods listing close;
+    ods html5 file = "&project_folder/reports/core_dataset_metadata_&file_type..html";
+    ods excel file = "&project_folder/reports/core_dataset_metadata_&file_type..xlsx"
+      options(sheet_name = "Datasets Metadata %sysfunc(date(), e8601da.)" flow = "tables" autofilter = 'all');
 
-ods excel close;
-ods html5 close;
-ods listing;
+      proc print data = metadata.core_dataset_metadata_&file_type;
+        title "Datasets Metadata %sysfunc(date(), e8601da.)";
+      run;
 
-libname metadata clear;
+    ods excel close;
+    ods html5 close;
+    ods listing;
+
+%mend list_metadata;
+
+%list_metadata(file_type=xpt, sub_folder=sdtm);
+%list_metadata(file_type=json, sub_folder=sdtm_json);

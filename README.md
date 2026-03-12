@@ -2,7 +2,9 @@
 
 The [cdisc-core-sas GitHub repository](https://github.com/lexjansen/cdisc-core-sas) contains working files and other artefacts to support a Proof of Concept for running CDISC CORE within SAS.
 
-This Proof of Concepts is based on CORE release v0.12.0 (August 2, 2025) and was developed on Windows 10 with SAS 9.4 TS1M7.
+This Proof of Concepts is based on CORE release v0.15 (February 25, 2026) and was developed on Windows 10 with SAS 9.4 TS1M7.
+
+For more information about CORE release v0.15: [cdisc-rules-engine/README.md](cdisc-rules-engine/README.md)
 
 ## Supported python versions
 
@@ -47,20 +49,21 @@ options set = MAS_M2PATH = "%sysget(SASROOT)/tkmas/sasmisc/mas2py.py";
 
 Run the following SAS programs (make sure to update the `project_folder` macro variable in each program):
 
-- programs/create_core_functions.sas (creates the `core_funcs` dataset in `macros`)
-- programs/run_core_update_cache.sas (updates the cache in `resources\cache`)
+- `programs/create_core_functions.sas` (creates the `core_funcs` dataset in `macros`)
+- `programs/run_core_update_cache.sas` (updates the cache in `resources\cache`)
 
 After this all the other SAS programs can run:
 
 - `programs/run_core_list_ct.sas`
-- `programs/run_core_list_dataset_metadata.sas`
 - `programs/run_core_list_rules.sas`
 - `programs/run_core_list_rule_sets.sas`
+- `programs/run_core_list_dataset_metadata.sas`
 - `programs/run_core_validate_data.sas`
 - `programs/run_core_validate_data_select.sas`
-- `programs/run_core_validate_data_local.sas`
+- `programs/run_core_validate_data_custom_standard.sas`
 - `programs/run_core_validate_data_json.sas`
 - `programs/run_core_validate_data_ndjson.sas`
+- `programs/run_core_validate_data_usdm.sas`
 
 ## Documentation
 
@@ -77,4 +80,3 @@ This project is using the [MIT](http://www.opensource.org/licenses/MIT "The MIT 
 
 ![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)
 The CDISC CORE Engine is licensed under the [MIT](http://www.opensource.org/licenses/MIT "The MIT License | Open Source Initiative") license (see [`LICENSE`](LICENSE-CDISC_RULES_ENGINE)).
-

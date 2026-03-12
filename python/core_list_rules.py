@@ -1,4 +1,12 @@
-def core_list_rules(output: str, standard: str, version: str, substandard: str, cache_path: str, custom_rules: bool, rule_id: str):
+def core_list_rules(
+    output: str, 
+    standard: str, 
+    version: str, 
+    substandard: str, 
+    cache_path: str, 
+    custom_rules: bool, 
+    rule_id: str
+):
     """Output: """
 
     """

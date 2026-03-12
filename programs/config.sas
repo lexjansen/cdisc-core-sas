@@ -48,3 +48,7 @@ run;
 %put NOTE: %str(CORE_VERSION: &core_version);
 %put NOTE: %str(CORE_PATH: &core_path);
 %put;
+
+%put NOTE: MAS_PYLOG_FILE: %sysfunc(sysget(MAS_PYLOG_FILE));
+%put NOTE: MAS_PYOUT_FILE: %sysfunc(sysget(MAS_PYOUT_FILE));
+%put NOTE: MAS_PYLOG_LEVEL: %sysfunc(sysget(MAS_PYLOG_LEVEL));

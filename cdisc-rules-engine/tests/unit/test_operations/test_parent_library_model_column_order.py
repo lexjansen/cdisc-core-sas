@@ -89,6 +89,7 @@ from cdisc_rules_engine.services.data_readers import DataReaderFactory
             },
             {
                 "_links": {"model": {"href": "/mdr/sdtm/1-5"}},
+                "domains": {"AE"},
                 "classes": [
                     {
                         "name": "Events",
@@ -118,6 +119,7 @@ def test_get_parent_column_order_from_library(
         SDTMDatasetMetadata(
             first_record={"DOMAIN": "AE"},
             filename="ae.xpt",
+            full_path="ae.xpt",
         )
     ]
     ae = PandasDataset.from_dict(
@@ -132,7 +134,8 @@ def test_get_parent_column_order_from_library(
         "cdisc_rules_engine.services.data_services.LocalDataService.get_dataset",
         side_effect=lambda dataset_name: path_to_dataset_map[dataset_name],
     ):
-        operation_params.dataframe = data
+        # Set evaluation_dataset instead of dataframe
+        operation_params.evaluation_dataset = data
         operation_params.domain = "SUPPAE"
         operation_params.standard = "sdtmig"
         operation_params.standard_version = "3-4"
@@ -143,13 +146,29 @@ def test_get_parent_column_order_from_library(
         library_metadata = LibraryMetadataContainer(
             standard_metadata=standard_metadata, model_metadata=model_metadata
         )
-        # execute operation
-        data_service = LocalDataService.get_instance(
-            cache_service=cache, config=ConfigService()
+
+        data_service = LocalDataService(
+            cache_service=cache,
+            config=ConfigService(),
+            reader_factory=DataReaderFactory(),
+            standard="sdtmig",
+            standard_version="3-4",
+            library_metadata=library_metadata,
         )
+
+        def mock_get_raw_metadata(dataset_name, **kwargs):
+            if "ae" in dataset_name.lower():
+                return SDTMDatasetMetadata(
+                    first_record={"DOMAIN": "AE"},
+                    filename="ae.xpt",
+                    full_path="ae.xpt",
+                )
+            return SDTMDatasetMetadata(name="UNKNOWN")
+
+        data_service.get_raw_dataset_metadata = mock_get_raw_metadata
         operation = ParentLibraryModelColumnOrder(
             operation_params,
-            operation_params.dataframe,
+            data,
             cache,
             data_service,
             library_metadata,
@@ -252,6 +271,7 @@ def test_get_parent_column_order_from_library(
             },
             {
                 "_links": {"model": {"href": "/mdr/sdtm/1-5"}},
+                "domains": {"AE", "EC"},
                 "classes": [
                     {
                         "name": FINDINGS_ABOUT,
@@ -281,10 +301,12 @@ def test_get_parent_findings_class_column_order_from_library(
         {
             "first_record": {"DOMAIN": "AE"},
             "filename": "ae.xpt",
+            "full_path": "ae.xpt",
         },
         {
             "first_record": {"DOMAIN": "EC"},
             "filename": "ec.xpt",
+            "full_path": "ec.xpt",
         },
     ]
     ae = DaskDataset.from_dict(
@@ -320,7 +342,8 @@ def test_get_parent_findings_class_column_order_from_library(
         "cdisc_rules_engine.services.data_services.LocalDataService.get_dataset",
         side_effect=lambda dataset_name: path_to_dataset_map[dataset_name],
     ):
-        operation_params.dataframe = data
+        # Set evaluation_dataset instead of dataframe
+        operation_params.evaluation_dataset = data
         operation_params.domain = "SUPPAE"
         operation_params.standard = "sdtmig"
         operation_params.standard_version = "3-4"
@@ -343,9 +366,27 @@ def test_get_parent_findings_class_column_order_from_library(
             standard_version="3-4",
             library_metadata=library_metadata,
         )
+
+        def mock_get_raw_metadata(dataset_name, **kwargs):
+            if "ae" in dataset_name.lower():
+                return SDTMDatasetMetadata(
+                    first_record={"DOMAIN": "AE"},
+                    filename="ae.xpt",
+                    full_path="ae.xpt",
+                )
+            elif "ec" in dataset_name.lower():
+                return SDTMDatasetMetadata(
+                    first_record={"DOMAIN": "EC"},
+                    filename="ec.xpt",
+                    full_path="ec.xpt",
+                )
+            return SDTMDatasetMetadata(name="UNKNOWN")
+
+        data_service.get_raw_dataset_metadata = mock_get_raw_metadata
+
         operation = ParentLibraryModelColumnOrder(
             operation_params,
-            operation_params.dataframe,
+            data,
             cache,
             data_service,
             library_metadata,

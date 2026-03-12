@@ -3,6 +3,7 @@
 @param cache_path - required - Relative path to cache files containing pre loaded metadata and rules
 @param pool_size - required - Number of parallel processes for validation. The default is 10.
 @param data - optional - Path to directory containing data files
+@param filetype - optional - File extension to use for input files in the data directory (e.g., 'json', 'xpt', 'xlsx', 'ndjson')
 @param dataset_path - optional - Absolute path to dataset file (multiple allowed)
 @param log_level - required - Sets log level for engine logs, logs are disabled by default. (default: disabled)
        Allowed values: "info", "debug", "error", "critical", "disabled", "warn".
@@ -10,6 +11,7 @@
 @param standard - required - CDISC standard to validate against
 @param version - required - Standard version to validate against
 @param substandard - optional - CDISC Substandard to validate against
+@param use_case - optional - CDISC TIG Use Case for scoping a TIG Validation. Any of INDH, PROD, NONCLIN, or ANALYSIS.
 @param controlled_terminology_package - optional - Controlled terminology package to validate against (multiple allowed)
 @param output - - Report output file destination
 @param output_format - optional - Output file format.  The default is XLSX. (not case-sensitive, multiple allowed)
@@ -27,21 +29,29 @@
 @param snomed_edition - optional - Edition of snomed to use
 @param snomed_url - optional - The Base URL of snomed to use. Defaults to snowstorm test instance
 @param rules - optional - Rule core id. ex: CORE-000001. Can be specified multiple times.
+@param exclude_rules - optional - Specify rule core ID to exclude, ex. CORE-000001. Can be specified multiple times.
 @param local_rules - optional - path to directory containing local rules
 @param custom_standard - optional - flag to run a validation using a custom_standard from the cache (0/1).
+@param jsonata_custom_functions - optional - Variable Name and Path to directory containing a set of custom JSONata functions.
+@param max_report_rows - optional - Maximum number of rows per report sheet. Defaults to 10000.
+@param max_errors_per_rule - optional - Maximum number of errors per rule. Example: 100 1
+       If per_dataset_flag is false (default), applies cumulative limit across datasets.
+       If true, limits reported issues per dataset per rule.
+@param encoding - File encoding for reading datasets. Defaults to utf-8. Supported encodings: utf-8, utf-16, utf-32, cp1252, latin-1, etc.
 
 **/
-
 %macro core_validate_data(
   cache_path = %sysfunc(sysget(CORE_PATH))/resources/cache,
   pool_size = 10,
   data =,
+  filetype =,
   dataset_path =,
   log_level = disabled,
   report_template = %sysfunc(sysget(CORE_PATH))/resources/templates/report-template.xlsx,
   standard =,
   version =,
   substandard =,
+  use_case=,
   controlled_terminology_package =,
   output =,
   output_format = XLSX,
@@ -58,8 +68,13 @@
   snomed_edition =,
   snomed_url = %str(https://snowstorm.snomedtools.org/snowstorm/snomed-ct/),
   rules =,
+  exclude_rules=,
   local_rules =,
-  custom_standard = 0
+  custom_standard = 0,
+  jsonata_custom_functions =,
+  max_report_rows = 10000,
+  max_errors_per_rule = %str(0 0),
+  encoding = utf-8
   ) / minoperator;
 
   %local
@@ -145,6 +160,14 @@
     %goto exit_macro;
   %end;
 
+  %* Check use_case;
+  %if %sysevalf(%superq(use_case)=, boolean) = 0 %then %do;
+    %if not(&use_case in (INDH PROD NONCLIN ANALYSIS)) %then %do;
+      %put ERR%str(OR): [&sysmacroname] Macro parameter &=use_case must be one of "INDH", "PROD", "NONCLIN", "ANALYSIS".;
+      %goto exit_macro;
+    %end;
+  %end;
+
   %* Check output_format;
   %if %sysevalf(%superq(output_format)=, boolean) = 0 %then %do;
     %let i = 1;
@@ -180,11 +203,11 @@
   %end;
 
   data _null_;
-    message = core_validate_data("&cache_path", &pool_size, "&data", "&dataset_path", "&log_level", "&report_template", 
-      "&standard", "&version", "&substandard", "&output",  "&output_format",  &raw_report, "&controlled_terminology_package",
+    message = core_validate_data("&cache_path", &pool_size, "&data", "&filetype", "&dataset_path", "&log_level", "&report_template",
+      "&standard", "&version", "&substandard", "&use_case", "&output",  "&output_format",  &raw_report, "&controlled_terminology_package",
       "&define_version", "&define_xml_path", "&validate_xml",
-      "&whodrug", "&meddra", "&loinc", "&medrt", "&unii", "&snomed_version", "&snomed_edition", "&snomed_url", 
-      "&rules", "&local_rules", &custom_standard);
+      "&whodrug", "&meddra", "&loinc", "&medrt", "&unii", "&snomed_version", "&snomed_edition", "&snomed_url",
+      "&rules", "&exclude_rules", "&local_rules", &custom_standard, "&jsonata_custom_functions", max_report_rows, "(&max_errors_per_rule)", "&encoding");
     if not missing(message) then putlog "ERR" "OR: " message;
   run;
 

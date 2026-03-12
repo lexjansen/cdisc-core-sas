@@ -26,6 +26,7 @@ options noquotelenmax;
   dataset_path = %str
     (&project_folder/testdata/sdtm/dm.xpt, 
      &project_folder/testdata/sdtm/ae.xpt),
+  report_template=&project_folder/resources/templates/report-template.xlsx,
   standard = sdtmig,
   version = 3-3,
   output= &project_folder/reports/&report_name._sdtmig_3-3_select,
@@ -40,5 +41,6 @@ options noquotelenmax;
   unii = &project_folder/testdata/dictionaries/unii,
   snomed_version = 2024-09-01,
   snomed_edition = SNOMEDCT-US,
-  rules = "&core_rules"
+  rules = "&core_rules",
+  max_errors_per_rule = %str(10 1)
   );

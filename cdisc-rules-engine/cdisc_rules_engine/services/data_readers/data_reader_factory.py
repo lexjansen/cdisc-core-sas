@@ -12,9 +12,10 @@ from cdisc_rules_engine.services.data_readers.dataset_ndjson_reader import (
     DatasetNDJSONReader,
 )
 from cdisc_rules_engine.services.data_readers.parquet_reader import ParquetReader
-from cdisc_rules_engine.services.data_readers.usdm_json_reader import USDMJSONReader
+from cdisc_rules_engine.services.data_readers.json_reader import JSONReader
 from cdisc_rules_engine.enums.dataformat_types import DataFormatTypes
 from cdisc_rules_engine.models.dataset import PandasDataset
+from cdisc_rules_engine.constants import DEFAULT_ENCODING
 
 
 class DataReaderFactory(FactoryInterface):
@@ -23,12 +24,18 @@ class DataReaderFactory(FactoryInterface):
         DataFormatTypes.PARQUET.value: ParquetReader,
         DataFormatTypes.JSON.value: DatasetJSONReader,
         DataFormatTypes.NDJSON.value: DatasetNDJSONReader,
-        DataFormatTypes.USDM.value: USDMJSONReader,
+        DataFormatTypes.USDM.value: JSONReader,
     }
 
-    def __init__(self, service_name: str = None, dataset_implementation=PandasDataset):
+    def __init__(
+        self,
+        service_name: str = None,
+        dataset_implementation=PandasDataset,
+        encoding: str = None,
+    ):
         self._default_service_name = service_name
         self.dataset_implementation = dataset_implementation
+        self.encoding = encoding
 
     @classmethod
     def register_service(cls, name: str, service: Type[DataReaderInterface]):
@@ -47,7 +54,9 @@ class DataReaderFactory(FactoryInterface):
         """
         service_name = name or self._default_service_name
         if service_name in self._reader_map:
-            return self._reader_map[service_name](self.dataset_implementation)
+            reader_class = self._reader_map[service_name]
+            encoding = self.encoding or DEFAULT_ENCODING
+            return reader_class(self.dataset_implementation, encoding=encoding)
         raise ValueError(
             f"Service name must be in {list(self._reader_map.keys())}, "
             f"given service name is {service_name}"

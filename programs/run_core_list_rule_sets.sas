@@ -20,11 +20,12 @@ run;
 
 libname jsonfile json fileref=rulesets;
 
-data metadata.core_rulesets(keep=standard version);
+data metadata.core_rulesets(keep=standard version substandard);
   length standard $32 version $16;
   set jsonfile.alldata;
   standard = strip(scan(value, 1, ','));
   version = strip(scan(value, 2, ','));
+  substandard = strip(scan(value, 3, ','));
 run;
 
 proc sort data = metadata.core_rulesets;
@@ -50,11 +51,12 @@ run;
 
 libname jsonfile json fileref=rulesetc;
 
-data metadata.core_rulesets_custom(keep=standard version);
-  length standard $32 version $16;
+data metadata.core_rulesets_custom(keep=standard version substandard);
+  length standard $32 version $16 substandard $32;
   set jsonfile.alldata;
   standard = strip(scan(value, 1, ','));
   version = strip(scan(value, 2, ','));
+  substandard = strip(scan(value, 3, ','));
 run;
 
 proc sort data = metadata.core_rulesets_custom;

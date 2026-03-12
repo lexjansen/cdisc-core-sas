@@ -45,3 +45,14 @@ programs/*.cmd
 archive/
 develop/
 cdisc-rules-engine-*/
+
+# Ignore local rules
+resources/cache/custom_rules_dictionary.pkl
+resources/cache/custom_rules.pkl
+
+# CORE reports
+CORE-Report*.xlsx
+CORE-Report*.json
+
+logs
+~$CORE-*.xlsx

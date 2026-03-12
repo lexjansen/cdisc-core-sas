@@ -10,6 +10,7 @@ from cdisc_rules_engine.operations.define_dictionary_version_validator import (
 )
 from cdisc_rules_engine.operations.distinct import Distinct
 from cdisc_rules_engine.operations.extract_metadata import ExtractMetadata
+from cdisc_rules_engine.operations.get_xhtml_errors import GetXhtmlErrors
 from cdisc_rules_engine.operations.library_column_order import LibraryColumnOrder
 from cdisc_rules_engine.operations.library_model_column_order import (
     LibraryModelColumnOrder,
@@ -29,6 +30,7 @@ from cdisc_rules_engine.operations.maximum import Maximum
 from cdisc_rules_engine.operations.mean import Mean
 from cdisc_rules_engine.operations.domain_is_custom import DomainIsCustom
 from cdisc_rules_engine.operations.domain_label import DomainLabel
+from cdisc_rules_engine.operations.standard_domains import StandardDomains
 from cdisc_rules_engine.operations.meddra_code_references_validator import (
     MedDRACodeReferencesValidator,
 )
@@ -41,6 +43,7 @@ from cdisc_rules_engine.operations.meddra_term_references_validator import (
 from cdisc_rules_engine.operations.min_date import MinDate
 from cdisc_rules_engine.operations.minimum import Minimum
 from cdisc_rules_engine.operations.record_count import RecordCount
+from cdisc_rules_engine.operations.split_by import SplitBy
 from cdisc_rules_engine.operations.valid_external_dictionary_code import (
     ValidExternalDictionaryCode,
 )
@@ -119,7 +122,9 @@ class OperationsFactory(FactoryInterface):
         "variable_is_null": VariableIsNull,
         "domain_is_custom": DomainIsCustom,
         "domain_label": DomainLabel,
+        "standard_domains": StandardDomains,
         "required_variables": RequiredVariables,
+        "split_by": SplitBy,
         "expected_variables": ExpectedVariables,
         "permissible_variables": PermissibleVariables,
         "study_domains": StudyDomains,
@@ -132,6 +137,7 @@ class OperationsFactory(FactoryInterface):
         "valid_external_dictionary_code_term_pair": ValidExternalDictionaryCodeTermPair,
         "valid_define_external_dictionary_version": DefineDictionaryVersionValidator,
         "get_dataset_filtered_variables": GetDatasetFilteredVariables,
+        "get_xhtml_errors": GetXhtmlErrors,
     }
 
     @classmethod
@@ -172,6 +178,6 @@ class OperationsFactory(FactoryInterface):
                 kwargs.get("library_metadata"),
             )
         raise ValueError(
-            f"Operation name must be in  {list(self._operations_map.keys())}, "
+            f"Operation name must be in {list(self._operations_map.keys())}, "
             f"given operation name is {name}"
         )
