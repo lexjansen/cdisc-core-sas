@@ -7,15 +7,14 @@
 %include "&project_folder/programs/config.sas";
 
 
-filename rules "&project_folder/json/core_rules_sdtmig-3-2-custom.json";
+filename rules "&project_folder/json/core_rules_mycustom_1-0.json";
 
 %core_list_rules(
   output =  %sysfunc(pathname(rules)),
-  standard = %str(sdtmig),
-  version = %str(3-2),
+  standard = %str(mycustom),
+  version = %str(1-0),
   cache_path = &project_folder/resources/cache,
-  custom_rules = 1,
-  rule_id = CUSTOM123
+  custom_rules = 1
 );
 
 proc sql;
@@ -49,9 +48,15 @@ data _null_;
   length code $ 1024;
   if upcase(standard) = "USDM" then
   %* For DDF only get JSON ;
-    code = cats('%nrstr(%get_core_rules(core_standard=', lowcase(standard), ', core_substandard=', lowcase(substandard), ', core_standard_version=', version, ', dsout=));');
+    code = cats('%nrstr(%get_core_rules(core_standard=', 
+        lowcase(standard), ', core_substandard=', 
+        lowcase(substandard), ', core_standard_version=', 
+        version, ', dsout=));');
   else
-    code = cats('%nrstr(%get_core_rules(core_standard=', lowcase(standard), ', core_substandard=', lowcase(substandard), ', core_standard_version=', version, '));');
+    code = cats('%nrstr(%get_core_rules(core_standard=', 
+        lowcase(standard), ', core_substandard=', 
+        lowcase(substandard), ', core_standard_version=', 
+        version, '));');
   put code=;
   call execute(code);
 run;

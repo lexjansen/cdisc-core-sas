@@ -35,7 +35,7 @@
 @param jsonata_custom_functions - optional - Variable Name and Path to directory containing a set of custom JSONata functions.
 @param max_report_rows - optional - Maximum number of rows per report sheet. Defaults to 10000.
 @param max_errors_per_rule - optional - Maximum number of errors per rule. Example: 100 1
-       If per_dataset_flag is false (default), applies cumulative limit across datasets. 
+       If per_dataset_flag is false (default), applies cumulative limit across datasets.
        If true, limits reported issues per dataset per rule.
 @param encoding - File encoding for reading datasets. Defaults to utf-8. Supported encodings: utf-8, utf-16, utf-32, cp1252, latin-1, etc.
 
@@ -74,7 +74,7 @@
   jsonata_custom_functions =,
   max_report_rows = 10000,
   max_errors_per_rule = %str(0 0),
-  encoding =utf-8
+  encoding = utf-8
   ) / minoperator;
 
   %local
@@ -203,10 +203,10 @@
   %end;
 
   data _null_;
-    message = core_validate_data("&cache_path", &pool_size, "&data", "&filetype", "&dataset_path", "&log_level", "&report_template", 
+    message = core_validate_data("&cache_path", &pool_size, "&data", "&filetype", "&dataset_path", "&log_level", "&report_template",
       "&standard", "&version", "&substandard", "&use_case", "&output",  "&output_format",  &raw_report, "&controlled_terminology_package",
       "&define_version", "&define_xml_path", "&validate_xml",
-      "&whodrug", "&meddra", "&loinc", "&medrt", "&unii", "&snomed_version", "&snomed_edition", "&snomed_url", 
+      "&whodrug", "&meddra", "&loinc", "&medrt", "&unii", "&snomed_version", "&snomed_edition", "&snomed_url",
       "&rules", "&exclude_rules", "&local_rules", &custom_standard, "&jsonata_custom_functions", max_report_rows, "(&max_errors_per_rule)", "&encoding");
     if not missing(message) then putlog "ERR" "OR: " message;
   run;
